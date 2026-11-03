@@ -1,5 +1,5 @@
 import type { FastifyRequest } from 'fastify';
-import { getSettings, ipInCidrs, newId, truncateIp, type Sql } from '@vs/core';
+import { geoIp, getSettings, ipInCidrs, newId, truncateIp, type Sql } from '@vs/core';
 import type { TelemetryLevel } from '@vs/shared';
 import type { AppContext } from '../context.js';
 import { parseUa, primaryLang, referrerHost, utmFrom, visitorHash, detectBot } from './viewer.js';
@@ -43,13 +43,14 @@ export async function createViewSession(
   const info = parseUa(ua, req.headers);
   const bot = detectBot(ua);
   const minimal = level === 'minimal';
+  const geo = (await geoIp(ctx.config.GEOIP_DIR)).lookup(req.clientIp);
   const proto = header(req, 'x-client-protocol') ?? `HTTP/${req.raw.httpVersion}`;
   const tls = header(req, 'x-client-tls') || null;
   await sql.begin(async (tx) => {
     await tx`
       INSERT INTO view_sessions (id, link_id, video_id, telemetry_level, ip, ip_trunc, visitor_hash, user_agent, device_type, os, browser,
                                  browser_version, lang, referrer_host, utm, is_bot, bot_name, dnt, gpc, http_version, tls_version,
-                                 unlocked, embed)
+                                 unlocked, embed, country, region, city, asn, as_org)
       VALUES (${id}, ${link.id}, ${link.video_id}, ${level}, ${minimal ? null : req.clientIp}, ${truncateIp(req.clientIp)},
               ${minimal ? null : visitorHash(ctx.config.INGEST_SIGNING_KEY, req.clientIp, ua, al, link.id)},
               ${minimal ? null : ua.slice(0, 1000)}, ${info.deviceType}, ${minimal ? null : info.os}, ${minimal ? null : info.browser},
@@ -57,7 +58,8 @@ export async function createViewSession(
               ${minimal ? null : referrerHost(header(req, 'referer'), ctx.config.PUBLIC_HOST)},
               ${minimal ? null : utmFrom(req.query as Record<string, unknown>) ? sql.json(utmFrom(req.query as Record<string, unknown>) as never) : null},
               ${bot.isBot}, ${bot.name}, ${header(req, 'dnt') === '1'}, ${header(req, 'sec-gpc') === '1'},
-              ${minimal ? null : proto.slice(0, 16)}, ${minimal ? null : (tls?.slice(0, 16) ?? null)}, ${opts.unlocked}, ${opts.embed})`;
+              ${minimal ? null : proto.slice(0, 16)}, ${minimal ? null : (tls?.slice(0, 16) ?? null)}, ${opts.unlocked}, ${opts.embed}, ${geo.country},
+              ${minimal ? null : geo.region}, ${minimal ? null : geo.city}, ${minimal ? null : geo.asn}, ${minimal ? null : geo.asOrg})`;
     await tx`INSERT INTO session_summaries (session_id) VALUES (${id})`;
   });
   return { id, stored: true, level };

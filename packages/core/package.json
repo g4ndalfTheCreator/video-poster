@@ -17,12 +17,13 @@
     "@vs/shared": "workspace:*",
     "drizzle-orm": "~0.44.7",
     "ipaddr.js": "^2.2.0",
+    "maxmind": "^4.3.29",
+    "pg-boss": "~10.4.2",
     "pino": "^9.13.0",
     "postgres": "~3.4.7",
     "tweetnacl": "^1.0.3",
     "uuid": "^11.1.0",
-    "zod": "^4.1.12",
-    "pg-boss": "~10.4.2"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "tsx": "^4.20.6"

@@ -92,3 +92,8 @@ export const RESERVED_SLUGS = new Set([
 
 export const DEFAULT_LOCALE = 'fi';
 export const DEFAULT_TIMEZONE = 'Europe/Helsinki';
+
+const ROLE_LEVEL: Record<string, number> = { viewer: 1, editor: 2, owner: 3 };
+export function roleAtLeastFn(role: string, min: Role): boolean {
+  return (ROLE_LEVEL[role] ?? 0) >= ROLE_LEVEL[min]!;
+}

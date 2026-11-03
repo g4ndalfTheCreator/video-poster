@@ -13,6 +13,8 @@ import {
   signMediaUrl,
   verifyIngestToken,
   verifySessionSig,
+  QUEUES,
+  type IpEnrichJob,
   type Sql,
 } from '@vs/core';
 import { ANY_SLUG_RE, type Cta, type Settings } from '@vs/shared';
@@ -169,7 +171,10 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
     // Link preview bots (LinkedIn, Slack, Teams, …): Open Graph page only, recorded as a preview, not a view.
     if (bot.isBot) {
       await sql`INSERT INTO link_previews (link_id, bot_name, user_agent, ip, country) VALUES (${link.id}, ${bot.name}, ${(ua ?? '').slice(0, 500)}, ${req.clientIp}, NULL)`;
-      await ctx.jobs.send('ip_enrich', { ip: req.clientIp ?? '' }).catch(() => undefined);
+      if (req.clientIp)
+        await ctx.jobs
+          .send(QUEUES.ipEnrich, { ip: req.clientIp } satisfies IpEnrichJob)
+          .catch(() => undefined);
       await pad(started);
       setPageHeaders(reply, ctx.config, { nonce, embed });
       return reply.send(
@@ -203,10 +208,12 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
       return sendNotFound(req, reply, started);
     }
     const session = await createViewSession(ctx, req, link, { unlocked: !!link.password_hash, embed });
-    if (session.stored)
+    // minimal level: no IP owner lookup at all
+    if (session.stored && req.clientIp && session.level !== 'minimal') {
       await ctx.jobs
-        .send('ip_enrich', { ip: req.clientIp ?? '', sessionId: session.id })
+        .send(QUEUES.ipEnrich, { ip: req.clientIp, sessionId: session.id } satisfies IpEnrichJob)
         .catch(() => undefined);
+    }
 
     const sign = (file: string) =>
       signMediaUrl({

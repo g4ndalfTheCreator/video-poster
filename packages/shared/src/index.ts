@@ -6,3 +6,6 @@ export * from './events.js';
 export * from './api.js';
 export * from './vtt.js';
 export * from './csv.js';
+export * from './estimate.js';
+export * from './summary.js';
+export * from './fingerprint.js';
