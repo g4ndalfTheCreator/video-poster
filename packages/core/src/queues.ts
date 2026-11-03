@@ -16,6 +16,7 @@ export const QUEUES = {
   purgeTrash: 'purge_trash',
   geoipUpdate: 'geoip_update',
   torList: 'tor_list',
+  backup: 'backup',
 } as const;
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 

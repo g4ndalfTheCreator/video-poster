@@ -212,3 +212,16 @@ HTML pages: strict CSP (`default-src 'self'`, nonce only for one inline style, n
 `frame-ancestors 'none'` (or `*` for embeds), `X-Frame-Options`, `nosniff`, `Referrer-Policy`,
 `Permissions-Policy`, COOP/CORP, HSTS when served over HTTPS. Every other api response gets a baseline
 (`default-src 'none'` CSP, nosniff, DENY). A securityheaders-style grading test requires grade A.
+
+## D32 – Backups and NixOS module
+
+Database backups are a worker job running `pg_dump -Fc` (the app image includes `postgresql-client`;
+pg_dump 17 from Debian trixie dumps a PostgreSQL 16 server), rotated by count, with a status file read by
+the System page. Media backups are left to ZFS snapshots or restic as the spec suggests. The optional
+NixOS module (`services.video-share`) was not implemented in this version.
+
+## D33 – Metrics without a client library
+
+`/metrics` is hand-written Prometheus text exposition (one histogram, a few counters and gauges queried
+on scrape) to avoid another dependency; it is available only from `ADMIN_ALLOW_CIDRS` in both nginx and
+the api.

@@ -50,6 +50,10 @@ const envSchema = z.object({
   TRANSCODE_PRESET: z.string().default('medium'),
   /** Login attempts per client IP per 15 minutes (account lockout is separate). */
   LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(30),
+  BACKUP_DIR: z.string().default('/srv/backups'),
+  BACKUP_KEEP: z.coerce.number().int().min(1).default(14),
+  /** Cron (UTC) for the nightly database dump; 'off' disables it. */
+  BACKUP_CRON: z.string().default('47 1 * * *'),
   MEDIA_TOKEN_TTL_S: z.coerce
     .number()
     .int()

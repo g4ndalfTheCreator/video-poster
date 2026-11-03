@@ -35,10 +35,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # ---- api + worker image (same image, different command)
 FROM ${NODE_IMAGE} AS app
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg tini ca-certificates \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg tini ca-certificates postgresql-client \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd -g 10001 app && useradd -u 10001 -g app -M -s /usr/sbin/nologin app \
- && mkdir -p /srv/media /srv/geoip /tmp/vs && chown -R app:app /srv/media /tmp/vs
+ && mkdir -p /srv/media /srv/geoip /srv/backups /tmp/vs && chown -R app:app /srv/media /srv/geoip /srv/backups /tmp/vs
 WORKDIR /app
 COPY --from=prod-deps /app ./
 COPY --from=build /app/apps/api/dist apps/api/dist

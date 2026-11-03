@@ -247,7 +247,10 @@ export async function ingestRoutes(app: FastifyInstance, ctx: AppContext) {
   const respond = async (req: FastifyRequest, reply: FastifyReply, body: unknown) => {
     reply.header('cache-control', 'no-store');
     const r = await ingestBatch(ctx, body, req);
-    if (r.status === 200) return reply.code(200).send(r.result);
+    if (r.status === 200) {
+      (reply as unknown as { vsAccepted?: number }).vsAccepted = r.result!.accepted;
+      return reply.code(200).send(r.result);
+    }
     return reply.code(r.status).send();
   };
   app.post('/t/v1/events', { bodyLimit: INGEST_MAX_BYTES }, async (req, reply) =>
