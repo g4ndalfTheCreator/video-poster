@@ -57,7 +57,7 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
   );
 
   app.post('/auth/login', { config: { public: true }, schema: { body: loginSchema } }, async (req, reply) => {
-    const ipLimit = await hitRateLimit(sql, `login-ip:${req.clientIp}`, 30, 900);
+    const ipLimit = await hitRateLimit(sql, `login-ip:${req.clientIp}`, ctx.config.LOGIN_RATE_LIMIT, 900);
     if (ipLimit.limited) throw tooMany('too many login attempts');
     const { email, password } = req.body;
     const rows = await sql<

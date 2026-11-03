@@ -48,6 +48,8 @@ const envSchema = z.object({
   MAX_DURATION_S: z.coerce.number().int().positive().default(900),
   TRANSCODE_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(1),
   TRANSCODE_PRESET: z.string().default('medium'),
+  /** Login attempts per client IP per 15 minutes (account lockout is separate). */
+  LOGIN_RATE_LIMIT: z.coerce.number().int().min(1).default(30),
   MEDIA_TOKEN_TTL_S: z.coerce
     .number()
     .int()

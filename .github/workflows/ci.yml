@@ -44,6 +44,7 @@ jobs:
           cp deploy/.env.example deploy/.env
           sed -i "s/^PUBLIC_HOST=.*/PUBLIC_HOST=localhost:8080/;s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=ci-$(openssl rand -hex 8)/" deploy/.env
           sed -i "s/^HTTP_PORT=.*/HTTP_PORT=8080/;s/^HTTPS_PORT=.*/HTTPS_PORT=8443/" deploy/.env
+          echo "LOGIN_RATE_LIMIT=1000" >> deploy/.env
           for k in MEDIA_SIGNING_KEY INGEST_SIGNING_KEY APP_ENCRYPTION_KEY; do sed -i "s/^$k=.*/$k=$(openssl rand -hex 32)/" deploy/.env; done
       - run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
       - run: curl -fsS http://localhost:8080/healthz

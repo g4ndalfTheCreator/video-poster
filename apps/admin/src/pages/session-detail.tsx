@@ -1,10 +1,11 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useParams } from '@tanstack/react-router';
+import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { get, post } from '../lib/api';
+import { del, get, post } from '../lib/api';
 import { can, useMe } from '../lib/auth';
 import { fmtDateTime, fmtDuration, fmtNum, fmtPct } from '../lib/format';
-import { Badge, Button, Card, ErrorText, Stat, Table } from '../components/ui';
+import { Badge, Button, Card, ConfirmDialog, ErrorText, Stat, Table } from '../components/ui';
 import { PageHeader } from '../components/layout';
 import { KpiGrid } from '../components/charts';
 import { NetworkCell } from './link-extras';
@@ -173,6 +174,8 @@ export function SessionDetailPage() {
   const { data: me } = useMe();
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['session', id], queryFn: () => get<Detail>(`/analytics/sessions/${id}`) });
+  const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const d = q.data;
   if (!d) return <ErrorText error={q.error} />;
   const s = d.summary;
@@ -185,7 +188,16 @@ export function SessionDetailPage() {
     ) : null;
   return (
     <>
-      <PageHeader title={`${t('sess.detail')}: ${d.linkLabel}`}>
+      <PageHeader
+        title={`${t('sess.detail')}: ${d.linkLabel}`}
+        actions={
+          can(me, 'owner') && (
+            <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)}>
+              {t('gdpr.deleteSession')}
+            </Button>
+          )
+        }
+      >
         <div className="mt-1 text-sm text-muted-fg">
           <Link
             to="/videos/$id"
@@ -310,6 +322,19 @@ export function SessionDetailPage() {
             )}
           </Card>
         </div>
+        <ConfirmDialog
+          open={confirmDelete}
+          title={t('gdpr.deleteSession')}
+          body={t('gdpr.confirm', { n: 1 })}
+          confirmLabel={t('gdpr.delete')}
+          cancelLabel={t('app.cancel')}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={() =>
+            void del(`/analytics/sessions/${d.id}`).then(() =>
+              navigate({ to: '/sessions', search: { page: 1 } }),
+            )
+          }
+        />
         <Card title={`${t('sess.events')} (${d.events.length})`}>
           <Table>
             <tbody>

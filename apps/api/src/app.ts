@@ -47,6 +47,25 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
     );
   });
 
+  // Baseline security headers for every response (HTML pages set a stricter, page-specific set).
+  app.addHook('onSend', async (_req, reply) => {
+    if (!reply.getHeader('x-content-type-options')) reply.header('x-content-type-options', 'nosniff');
+    if (!reply.getHeader('referrer-policy'))
+      reply.header('referrer-policy', 'strict-origin-when-cross-origin');
+    if (
+      !reply.getHeader('x-frame-options') &&
+      !String(reply.getHeader('content-security-policy') ?? '').includes('frame-ancestors *')
+    ) {
+      reply.header('x-frame-options', 'DENY');
+    }
+    if (!reply.getHeader('content-security-policy'))
+      reply.header('content-security-policy', "default-src 'none'; frame-ancestors 'none'");
+    if (!reply.getHeader('permissions-policy'))
+      reply.header('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+    if (ctx.config.PUBLIC_SCHEME === 'https' && !reply.getHeader('strict-transport-security'))
+      reply.header('strict-transport-security', 'max-age=31536000');
+  });
+
   await app.register(cookie);
   await app.register(formbody, { bodyLimit: 16 * 1024 });
 

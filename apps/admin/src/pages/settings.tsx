@@ -23,8 +23,9 @@ import {
 } from '../components/ui';
 import { PageHeader } from '../components/layout';
 import { ChannelsCard, IpOverridesCard } from './settings-extra';
+import { GdprCard } from './gdpr';
 
-type Tab = 'general' | 'users' | 'tokens' | 'channels' | 'account';
+type Tab = 'general' | 'users' | 'tokens' | 'channels' | 'gdpr' | 'account';
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -39,6 +40,7 @@ export function SettingsPage() {
           { value: 'users', label: t('settings.users') },
           { value: 'tokens', label: t('settings.apiTokens') },
           { value: 'channels', label: t('settings.channels') },
+          { value: 'gdpr', label: t('gdpr.tab') },
         ] as const)
       : []),
     { value: 'account', label: t('settings.account') },
@@ -53,6 +55,7 @@ export function SettingsPage() {
         {tab === 'users' && <UsersCard />}
         {tab === 'tokens' && <TokensCard />}
         {tab === 'channels' && <ChannelsCard />}
+        {tab === 'gdpr' && <GdprCard />}
         {tab === 'account' && <AccountCard />}
       </div>
     </>
