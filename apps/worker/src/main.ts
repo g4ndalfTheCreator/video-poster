@@ -30,7 +30,7 @@ async function main() {
   const boss = createBoss(config.DATABASE_URL);
   boss.on('error', (err) => log.error({ err }, 'pg-boss error'));
   await boss.start();
-  await ensureQueues(boss);
+  await ensureQueues(boss, database.sql);
   const ctx: WorkerContext = { config, database, boss, log };
   const media = { sql: database.sql, config, log };
 
