@@ -2,6 +2,8 @@ import PgBoss from 'pg-boss';
 
 export const QUEUES = {
   transcode: 'transcode',
+  poster: 'poster',
+  makeDownload: 'make_download',
   ipEnrich: 'ip_enrich',
   matchVisitor: 'match_visitor',
   notify: 'notify',
@@ -19,6 +21,14 @@ export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
 export interface TranscodeJob {
   videoId: string;
   jobId: string;
+}
+export interface PosterJob {
+  videoId: string;
+  atMs?: number;
+  imagePath?: string;
+}
+export interface DownloadJob {
+  videoId: string;
 }
 export interface IpEnrichJob {
   ip: string;

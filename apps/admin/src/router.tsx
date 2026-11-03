@@ -1,7 +1,7 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { useMe } from './lib/auth';
-import { listSearch, str } from './lib/search';
+import { listSearch, str, type ListSearch } from './lib/search';
 import { Layout } from './components/layout';
 import { AuthScreen } from './pages/auth';
 import { AuditPage } from './pages/audit';
@@ -21,6 +21,36 @@ function Root() {
 }
 
 const rootRoute = createRootRoute({ component: Root });
+
+type Opt<T> = { [K in keyof T]?: T[K] };
+interface VideoSearch {
+  tab?: string;
+  from?: string;
+  to?: string;
+  link?: string;
+}
+interface AnalyticsSearch {
+  from?: string;
+  to?: string;
+  videoId?: string;
+  linkId?: string;
+  hideBots?: boolean;
+  view?: string;
+}
+type VideosSearch = ListSearch & { status?: string };
+type SessionsSearch = ListSearch &
+  Opt<{
+    from: string;
+    to: string;
+    videoId: string;
+    linkId: string;
+    visitorId: string;
+    country: string;
+    device: string;
+    ip: string;
+    hideBots: boolean;
+  }>;
+
 const noSearch = () => ({});
 const r = <P extends string, S extends object = Record<string, never>>(
   path: P,
@@ -29,9 +59,9 @@ const r = <P extends string, S extends object = Record<string, never>>(
 ) => createRoute({ getParentRoute: () => rootRoute, path, component, validateSearch });
 
 const routeTree = rootRoute.addChildren([
-  r('/', pages.Dashboard, (s) => ({ days: Number(s.days) || 30 })),
-  r('/videos', pages.Videos, (s) => ({ ...listSearch(s), status: str(s.status) })),
-  r('/videos/$id', pages.VideoDetail, (s) => ({
+  r('/', pages.Dashboard, (s): { days?: number } => ({ days: Number(s.days) || undefined })),
+  r('/videos', pages.Videos, (s): VideosSearch => ({ ...listSearch(s), status: str(s.status) })),
+  r('/videos/$id', pages.VideoDetail, (s): VideoSearch => ({
     tab: str(s.tab) ?? 'details',
     from: str(s.from),
     to: str(s.to),
@@ -39,7 +69,7 @@ const routeTree = rootRoute.addChildren([
   })),
   r('/upload', pages.Upload),
   r('/links/$id', pages.LinkDetail),
-  r('/analytics', pages.Analytics, (s) => ({
+  r('/analytics', pages.Analytics, (s): AnalyticsSearch => ({
     from: str(s.from),
     to: str(s.to),
     videoId: str(s.videoId),
@@ -47,7 +77,7 @@ const routeTree = rootRoute.addChildren([
     hideBots: s.hideBots !== 'false' && s.hideBots !== false,
     view: str(s.view) ?? 'overview',
   })),
-  r('/sessions', pages.Sessions, (s) => ({
+  r('/sessions', pages.Sessions, (s): SessionsSearch => ({
     ...listSearch(s),
     from: str(s.from),
     to: str(s.to),
@@ -62,7 +92,7 @@ const routeTree = rootRoute.addChildren([
   r('/sessions/$id', pages.SessionDetail),
   r('/visitors', pages.Visitors, (s) => listSearch(s)),
   r('/visitors/$id', pages.VisitorDetail),
-  r('/settings', SettingsPage, (s) => ({ tab: str(s.tab) })),
+  r('/settings', SettingsPage, (s): { tab?: string } => ({ tab: str(s.tab) })),
   r('/audit', AuditPage, (s) => listSearch(s)),
   r('/system', pages.System),
 ]);

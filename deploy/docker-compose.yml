@@ -19,6 +19,7 @@ x-app: &app
   environment:
     DATABASE_URL: postgres://${POSTGRES_USER:-videoshare}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-videoshare}
     MEDIA_ROOT: /srv/media
+    MEDIA_ACCEL: 'true'
     GEOIP_DIR: /srv/geoip
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
   tmpfs:

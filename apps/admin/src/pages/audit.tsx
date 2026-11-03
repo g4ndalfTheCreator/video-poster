@@ -72,7 +72,7 @@ export function AuditPage() {
         )}
         {q.data && (
           <Pager
-            page={search.page}
+            page={search.page ?? 1}
             pageSize={q.data.pageSize}
             total={q.data.total}
             onPage={(p) => void navigate({ search: { ...search, page: p } })}

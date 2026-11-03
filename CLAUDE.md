@@ -42,7 +42,7 @@ docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
   applies them on startup under an advisory lock. Drizzle table definitions in `packages/core/src/schema.ts`
   must be kept in sync for tables queried through Drizzle.
 - API errors are always `{ error: { code, message, details? } }` (throw `HttpError` from `apps/api/src/lib/errors.ts`).
-- Every admin mutation writes an `audit_log` row. Role checks happen in route `preHandler`s
+- Every admin mutation writes an `audit_log` row. Role checks happen in route `preValidation` hooks
   (`requireRole('editor')`); `viewer` is read-only.
 - Apps (`apps/api`, `apps/worker`) must list every npm package they import at runtime, including the runtime
   deps of `@vs/core`/`@vs/shared` (pnpm strict layout; esbuild keeps them external).
