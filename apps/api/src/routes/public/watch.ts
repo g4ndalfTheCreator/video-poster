@@ -334,38 +334,34 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
     const rl = await hitRateLimit(sql, `unlock:${link.id}:${req.clientIp}`, 5, 15 * 60);
     if (rl.limited) {
       setPageHeaders(reply, ctx.config, { nonce });
-      return reply
-        .code(429)
-        .send(
-          passwordPage({
-            lang,
-            t,
-            nonce,
-            settings,
-            version,
-            slug: link.slug,
-            title: link.title,
-            error: t.tooManyAttempts,
-          }),
-        );
+      return reply.code(429).send(
+        passwordPage({
+          lang,
+          t,
+          nonce,
+          settings,
+          version,
+          slug: link.slug,
+          title: link.title,
+          error: t.tooManyAttempts,
+        }),
+      );
     }
     if (!(await verifyPassword(link.password_hash!, password))) {
       void linkEvent(link.id, 'password_fail', req);
       setPageHeaders(reply, ctx.config, { nonce });
-      return reply
-        .code(401)
-        .send(
-          passwordPage({
-            lang,
-            t,
-            nonce,
-            settings,
-            version,
-            slug: link.slug,
-            title: link.title,
-            error: t.wrongPassword,
-          }),
-        );
+      return reply.code(401).send(
+        passwordPage({
+          lang,
+          t,
+          nonce,
+          settings,
+          version,
+          slug: link.slug,
+          title: link.title,
+          error: t.wrongPassword,
+        }),
+      );
     }
     void linkEvent(link.id, 'password_ok', req);
     const exp = Math.floor(Date.now() / 1000) + UNLOCK_TTL_S;
