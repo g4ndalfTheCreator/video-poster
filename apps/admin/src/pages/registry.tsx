@@ -4,6 +4,7 @@ import { PageHeader } from '../components/layout';
 import { VideosPage } from './videos';
 import { VideoDetailPage } from './video-detail';
 import { UploadPage } from './upload';
+import { LinkDetailPage } from './link-detail';
 
 function Placeholder({ title }: { title: string }) {
   const { t } = useTranslation();
@@ -15,7 +16,7 @@ export const pages = {
   Videos: VideosPage,
   VideoDetail: VideoDetailPage,
   Upload: UploadPage,
-  LinkDetail: () => <Placeholder title="nav.videos" />,
+  LinkDetail: LinkDetailPage,
   Analytics: () => <Placeholder title="nav.analytics" />,
   Sessions: () => <Placeholder title="nav.sessions" />,
   SessionDetail: () => <Placeholder title="nav.sessions" />,

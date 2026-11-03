@@ -4,6 +4,7 @@ const browsers = (process.env.E2E_BROWSERS ?? 'chromium,webkit').split(',');
 
 export default defineConfig({
   testDir: '.',
+  globalSetup: './global-setup.ts',
   timeout: 120_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

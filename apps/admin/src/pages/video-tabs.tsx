@@ -1,7 +1,7 @@
-// Links (M3) and analytics (M5) tabs of the video page.
-import type { VideoDetail } from './video-detail';
+// Links and analytics tabs of the video page.
+import { LinksTab } from './links';
 
 export const tabs = {
-  Links: (_p: { video: VideoDetail }) => null,
+  Links: LinksTab,
   Analytics: (_p: { videoId: string }) => null,
 };
