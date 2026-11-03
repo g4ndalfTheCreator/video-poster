@@ -105,7 +105,9 @@ export function VideoDetailPage() {
         ]}
       />
       <div className="mt-4">
-        {tab === 'details' && <DetailsTab v={v} progress={progress} />}
+        {tab === 'details' && (
+          <DetailsTab v={v} progress={progress} seekTo={search.t ? Number(search.t) : undefined} />
+        )}
         {tab === 'links' && <Links video={v} />}
         {tab === 'analytics' && <Analytics videoId={v.id} />}
       </div>
@@ -113,12 +115,15 @@ export function VideoDetailPage() {
   );
 }
 
-function DetailsTab({ v, progress }: { v: VideoDetail; progress: number | null }) {
+function DetailsTab({ v, progress, seekTo }: { v: VideoDetail; progress: number | null; seekTo?: number }) {
   const { t } = useTranslation();
   const { data: me } = useMe();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const player = useRef<PlayerHandle>(null);
+  useEffect(() => {
+    if (seekTo !== undefined) setTimeout(() => player.current?.seek(seekTo), 500);
+  }, [seekTo]);
   const editor = can(me, 'editor');
   const refresh = () => qc.invalidateQueries({ queryKey: ['video', v.id] });
   const [form, setForm] = useState({

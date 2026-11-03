@@ -9,3 +9,4 @@ export * from './csv.js';
 export * from './estimate.js';
 export * from './summary.js';
 export * from './fingerprint.js';
+export * from './sprite.js';

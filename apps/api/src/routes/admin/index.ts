@@ -9,6 +9,8 @@ import { videoRoutes } from './videos.js';
 import { linkRoutes } from './links.js';
 import { channelRoutes } from './channels.js';
 import { analyticsRoutes } from './analytics.js';
+import { dashboardRoutes } from './analytics-dash.js';
+import { systemRoutes } from './system.js';
 import multipart from '@fastify/multipart';
 import { PgNotifications } from '../../lib/notify.js';
 
@@ -26,4 +28,6 @@ export async function adminApi(app: FastifyInstance, ctx: AppContext) {
   await linkRoutes(app, ctx);
   await channelRoutes(app, ctx);
   await analyticsRoutes(app, ctx);
+  await dashboardRoutes(app, ctx, notifications);
+  await systemRoutes(app, ctx);
 }

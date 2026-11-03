@@ -25,6 +25,7 @@ const rootRoute = createRootRoute({ component: Root });
 type Opt<T> = { [K in keyof T]?: T[K] };
 interface VideoSearch {
   tab?: string;
+  t?: string;
   from?: string;
   to?: string;
   link?: string;
