@@ -77,3 +77,8 @@ access). Used codes are remembered per user (`totp_last_step`) to prevent replay
 Login, TOTP and link-password attempt limits are fixed-window counters in a `rate_limits` table, so they
 survive restarts. Request-rate limits for public routes (ingest 30 r/min, slug lookups 60 r/min) are
 enforced by nginx `limit_req`.
+
+## D13 – SBOM with cdxgen
+
+`@cyclonedx/cyclonedx-npm` only understands npm's `node_modules` layout and fails on pnpm workspaces.
+The CycloneDX SBOM is generated with CycloneDX's `cdxgen` (`pnpm sbom`), which reads `pnpm-lock.yaml`.

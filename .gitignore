@@ -11,3 +11,4 @@ playwright-report/
 .vite/
 *.tsbuildinfo
 deploy/.sandbox-ca.crt
+sbom.json
