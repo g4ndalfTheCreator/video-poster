@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+dist
+coverage
+docs/SPEC.md
+**/migrations/*.sql

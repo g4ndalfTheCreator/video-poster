@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pnpm test
+      - run: pnpm audit --prod --audit-level high
+        continue-on-error: true
+      - run: pnpm build
+      - name: SBOM (CycloneDX)
+        run: pnpm sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+
+  compose:
+    runs-on: ubuntu-24.04
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare env
+        run: |
+          cp deploy/.env.example deploy/.env
+          sed -i "s/^PUBLIC_HOST=.*/PUBLIC_HOST=localhost:8080/" deploy/.env
+          sed -i "s/^HTTP_PORT=.*/HTTP_PORT=8080/;s/^HTTPS_PORT=.*/HTTPS_PORT=8443/" deploy/.env
+          for k in MEDIA_SIGNING_KEY INGEST_SIGNING_KEY APP_ENCRYPTION_KEY; do sed -i "s/^$k=.*/$k=$(openssl rand -hex 32)/" deploy/.env; done
+      - run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build --wait
+      - run: curl -fsS http://localhost:8080/healthz
+      - if: failure()
+        run: docker compose -f deploy/docker-compose.yml --env-file deploy/.env logs

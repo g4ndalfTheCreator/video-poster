@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types",
+    "rootDir": "src",
+    "emitDeclarationOnly": true
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ],
+  "exclude": ["src/**/*.test.ts"]
+}
