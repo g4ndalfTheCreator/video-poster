@@ -13,3 +13,4 @@ playwright-report/
 deploy/.sandbox-ca.crt
 sbom.json
 fixtures/
+e2e/.state.json

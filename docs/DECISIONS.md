@@ -95,3 +95,35 @@ attachments, MP4 download) go through the api, which hands the transfer to nginx
 
 The 720p MP4 is transcoded by a separate `make_download` job the first time a link with
 `allow_download` exists for the video version, instead of on every transcode (CPU-only host).
+
+## D16 – Link-level server events in `link_events`
+
+`link_expired_hit`, `password_ok`, `password_fail` and `max_sessions_hit` happen before a viewing
+session exists, so they are stored per link in `link_events` instead of the session-scoped `events`
+table. Server-generated session events (CTA click via `/go`, attachment and MP4 download) are written to
+`events` with negative sequence numbers so they never collide with client `seq` values.
+
+## D17 – Uniform 404
+
+Unknown, expired, closed, deleted, not-ready and exhausted (`max_sessions`) links all return the same
+404 page body (no CSP-nonce inline style on that page) and every `/v/*` response is padded to at least
+150 ms.
+
+## D18 – Link-preview bots
+
+Requests whose User-Agent is a known preview/crawler bot (LinkedInBot, Slackbot, Teams, WhatsApp, …,
+`isbot`, headless browsers) get the Open Graph page without a player or session and are stored in
+`link_previews`; they never count against `max_sessions`.
+
+## D19 – Player bundle
+
+The player uses the hls.js _light_ build (no EME, alternate audio, subtitle playlists or CMCD — captions
+are sidecar WebVTT `<track>`s). The page budget is enforced at build time
+(`packages/player/build.mjs`): player.js + player.css + HTML ≈ 113 kB gzip of the 120 kB budget, of which
+hls.js light is ~108 kB. Signed media tokens live in the URL path, so hls.js `xhrSetup` rewrites the
+token prefix after a playback-token refresh.
+
+## D20 – Password unlock cookie
+
+A correct link password sets a 12-hour `HttpOnly; SameSite=Lax` cookie containing an HMAC over the link
+id, expiry and the tail of the password hash, so changing the password invalidates existing unlocks.

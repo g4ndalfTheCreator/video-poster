@@ -1,14 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { ensureFixtures, SAMPLE_1080P, INVALID_VIDEO } from '../test/fixtures.js';
+import { INVALID_VIDEO } from '../test/fixtures.js';
 import { adminSession, tusUpload, waitForVideo } from './admin.js';
+import { e2eState } from './global-setup.js';
 
-test.beforeAll(() => ensureFixtures());
-
-test('uploaded 1080p sample becomes ready with 4 renditions and signed media', async ({ request, page }) => {
-  const s = await adminSession(request);
-  const id = await tusUpload(request, s, readFileSync(SAMPLE_1080P), 'sample-1080p.mp4', 'E2E sample');
-  const v = await waitForVideo(request, id, 'ready');
+test('uploaded 1080p sample (global setup) is ready with 4 renditions and signed media', async ({
+  request,
+  page,
+}) => {
+  await adminSession(request);
+  const v = await waitForVideo(request, e2eState().videoId, 'ready');
   expect(v.status).toBe('ready');
   expect(v.renditions.map((r: { height: number }) => r.height)).toEqual([1080, 720, 480, 360]);
 

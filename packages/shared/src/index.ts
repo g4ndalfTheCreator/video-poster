@@ -5,3 +5,4 @@ export * from './metrics.js';
 export * from './events.js';
 export * from './api.js';
 export * from './vtt.js';
+export * from './csv.js';
