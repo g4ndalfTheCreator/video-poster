@@ -13,6 +13,9 @@ export interface PlayerStrings {
   auto: string;
   pip: string;
   error: string;
+  tapForSound?: string;
+  swipeHint?: string;
+  thanks?: string;
 }
 
 /** Embedded by the server as <script type="application/json" id="vs-config">. */
@@ -32,6 +35,9 @@ export interface PageConfig {
   tokenExpiresAt: number;
   ctas: { id: string; host: string | null }[];
   strings: PlayerStrings;
+  /** Present when the link uses the full-viewport story flow. */
+  story?: { chapters: { atMs: number; title: string }[] } | null;
+  feedbackUrl?: string;
 }
 
 export function readConfig(doc: Document = document): PageConfig | null {

@@ -18,6 +18,7 @@ import {
   Field,
   Input,
   Pager,
+  Select,
   SortHeader,
   Table,
   Textarea,
@@ -43,6 +44,7 @@ export interface LinkRow {
   notifyOnOpen: boolean;
   notifyEveryOpen: boolean;
   ctaConfig: Cta[] | null;
+  storyMode: boolean | null;
   sessions: number;
   maxCompletion: number | null;
   previews: number;
@@ -378,6 +380,7 @@ export function LinkForm({
     ctaOverride: !!link?.ctaConfig,
     ctaConfig: link?.ctaConfig ?? [],
     keepOldSlugRedirect: true,
+    storyMode: link?.storyMode ?? null,
   });
   const [advanced, setAdvanced] = useState(!!link);
   const [slugCheck, setSlugCheck] = useState<{
@@ -414,6 +417,7 @@ export function LinkForm({
         notifyOnOpen: f.notifyOnOpen,
         notifyEveryOpen: f.notifyEveryOpen,
         ctaConfig: f.ctaOverride ? f.ctaConfig : null,
+        storyMode: f.storyMode,
         ...(link ? { keepOldSlugRedirect: f.keepOldSlugRedirect } : {}),
       };
       return link ? patch(`/links/${link.id}`, body) : post(`/videos/${videoId}/links`, body);
@@ -538,6 +542,18 @@ export function LinkForm({
             checked={f.notifyEveryOpen}
             onChange={(v) => setF({ ...f, notifyEveryOpen: v })}
           />
+          <Field label={t('story.linkSetting')}>
+            <Select
+              value={f.storyMode === null ? '' : String(f.storyMode)}
+              onChange={(e) =>
+                setF({ ...f, storyMode: e.target.value === '' ? null : e.target.value === 'true' })
+              }
+            >
+              <option value="">{t('story.followVideo')}</option>
+              <option value="true">{t('story.on')}</option>
+              <option value="false">{t('story.off')}</option>
+            </Select>
+          </Field>
           <Checkbox
             label={t('links.ctaOverride')}
             checked={f.ctaOverride}

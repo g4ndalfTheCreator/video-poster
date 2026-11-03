@@ -14,7 +14,7 @@ import { ensurePartitions, purgeTrash } from './jobs/maintenance.js';
 import { transcodeVideo, regeneratePoster, importPoster, makeDownload } from './media/transcode.js';
 import { defaultResolver, enrichIp, refreshTorExits } from './ipintel/enrich.js';
 import { matchVisitor } from './telemetry/visitors.js';
-import { notifyOpen, notifySummary, notifyTest } from './telemetry/notify.js';
+import { notifyFeedback, notifyOpen, notifySummary, notifyTest } from './telemetry/notify.js';
 import { closeIdleSessions } from './telemetry/sessions.js';
 import { startSyslogReceiver } from './telemetry/syslog.js';
 import { updateGeoIp } from './jobs/geoip.js';
@@ -72,6 +72,7 @@ async function main() {
       QUEUES.notify,
       (d) => {
         if (d.kind === 'test') return notifyTest(media, d.channelId);
+        if (d.kind === 'feedback') return notifyFeedback(media, d.sessionId);
         return d.kind === 'open' ? notifyOpen(media, d.sessionId) : notifySummary(media, d.sessionId);
       },
       1,

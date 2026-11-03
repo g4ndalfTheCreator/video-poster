@@ -26,7 +26,12 @@ export interface SessionRow {
   visitorId: string | null;
   visitorLabel: string | null;
   otherLinks?: number;
+  feedbackRating?: 'up' | 'meh' | 'down' | null;
+  feedbackComment?: string | null;
+  reachedDocuments?: boolean;
 }
+
+export const FEEDBACK_EMOJI = { up: '👍', meh: '🤷', down: '👎' } as const;
 
 export function NetworkCell({ s }: { s: Pick<SessionRow, 'networkType' | 'org' | 'confidence' | 'ip'> }) {
   const { t } = useTranslation();
@@ -135,6 +140,17 @@ function RecipientView({ link }: { link: LinkRow }) {
                   <div className="text-xs text-muted-fg">
                     {s.source === 'server' ? t('sess.sourceServer') : ''}
                   </div>
+                  {s.reachedDocuments && (
+                    <div className="text-xs" title={t('story.reached')}>
+                      📄 {t('story.docs')}
+                    </div>
+                  )}
+                  {s.feedbackRating && (
+                    <div className="text-xs" title={s.feedbackComment ?? ''}>
+                      {FEEDBACK_EMOJI[s.feedbackRating]}{' '}
+                      {s.feedbackComment ? `“${s.feedbackComment.slice(0, 60)}”` : ''}
+                    </div>
+                  )}
                 </td>
                 <td className="text-xs">
                   {s.visitorId ? (

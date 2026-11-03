@@ -144,6 +144,9 @@ export function startTelemetry(cfg: PageConfig, player: Player): void {
     else if (e.type === 'level' && e.auto) push('quality_change', { to: e.height, auto: true });
     else if (e.type === 'captions') push('captions_toggle', { lang: e.lang });
     else if (e.type === 'fullscreen' || e.type === 'pip') push(e.type, { enabled: e.enabled });
+    else if (e.type === 'story_documents') push('story_documents', { via: e.via });
+    else if (e.type === 'story_feedback_shown') push('story_feedback_shown');
+    else if (e.type === 'chapter') push('chapter', { index: e.index });
     else if (e.type === 'error')
       push('error', {
         code: String(e.code),

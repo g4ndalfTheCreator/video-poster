@@ -225,3 +225,32 @@ NixOS module (`services.video-share`) was not implemented in this version.
 `/metrics` is hand-written Prometheus text exposition (one histogram, a few counters and gauges queried
 on scrape) to avoid another dependency; it is available only from `ADMIN_ALLOW_CIDRS` in both nginx and
 the api.
+
+## D34 – Story mode
+
+Optional full-viewport mobile flow, enabled per video (`videos.story_mode`) with a per-link override
+(`share_links.story_mode`, NULL = follow the video). It uses a full-viewport layout instead of the
+Fullscreen API (iOS Safari only allows native video fullscreen, which would hide the overlays). The two
+panes (video, documents) are a CSS scroll-snap container, so swiping up to the documents works even
+without JavaScript. The video autoplays muted with a "tap for sound" button and captions on; chapters
+(`videos.chapters`) drive a stories-style progress bar. At the end a one-tap thumbs card (👍/🤷/👎 +
+optional comment, skippable, auto-advances after 3.5 s) is shown, then the view slides to the documents
+page, which repeats the question for viewers who skipped. Feedback is stored once per session in
+`feedback` (cascade-deleted with the session, included in GDPR export) and accepted at every telemetry
+level because the viewer gives it explicitly; a written comment triggers a notification. How viewers
+reached the documents (`swipe`, `ended`, `button`) is recorded in `session_summaries`. The page budget
+is checked against the real rendered story page (`apps/api/test/story.test.ts`).
+
+## D35 – Story layout on desktop and for horizontal video
+
+The story page adapts to the video's aspect ratio instead of assuming a portrait phone. The server
+emits the ratio (clamped to 0.3–3) as a CSS variable in the nonce'd `<style>` and a shape class
+(`vs-portrait`, `vs-landscape`, `vs-square`). On phones portrait video fills the screen (`cover`);
+landscape and square video is letterboxed (`contain`) over a blurred copy of the poster, and fills the
+screen when the phone is turned sideways. On desktop (≥ 760 px wide and > 520 px tall) the video sits
+in a rounded frame sized to its exact ratio and the viewport (portrait video in a phone-sized frame),
+over the same blurred backdrop; the documents page becomes a centered two-column card layout, and
+arrow keys / Page Up / Page Down move between video and documents. To stay inside the 120 kB budget
+the player is split into a core plus two bundles (`player.js` with the classic controls, `story.js`
+with the story UI) and the CSS into `base.css` + `watch.css` / `story.css`; each page loads only its
+own layout. `build.mjs` checks the larger page and the API test checks the real rendered story page.

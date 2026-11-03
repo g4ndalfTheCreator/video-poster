@@ -12,6 +12,8 @@ interface Shell {
   body: string;
   version: string;
   bodyClass?: string;
+  /** Layout stylesheet in addition to base.css. */
+  css?: 'watch' | 'story';
   /** Inline brand colour (needs the CSP nonce); off for the generic 404 so its body is byte-identical. */
   brand?: boolean;
 }
@@ -33,7 +35,8 @@ export function page(s: Shell): string {
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>${esc(s.title)}</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/player.css?v=${esc(s.version)}">
+<link rel="stylesheet" href="/static/base.css?v=${esc(s.version)}">
+${s.css ? `<link rel="stylesheet" href="/static/${s.css}.css?v=${esc(s.version)}">` : ''}
 ${s.brand === false ? '' : brandStyle(s.nonce, s.settings)}
 ${s.head ?? ''}
 </head>
@@ -122,6 +125,9 @@ export interface WatchView {
   /** Player/telemetry config; null for link-preview bots (no session). */
   config: Record<string, unknown> | null;
   embed?: boolean;
+  /** Full-viewport mobile flow: video → feedback → documents page. */
+  story?: boolean;
+  chapters?: { atMs: number; title: string }[];
 }
 
 export function watchPage(v: WatchView): string {
@@ -148,7 +154,9 @@ export function watchPage(v: WatchView): string {
   const portrait = !!(v.width && v.height && v.height > v.width);
   const fmtSize = (n: number) =>
     n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} kB`;
-  const body = `<main class="vs-watch${v.embed ? ' vs-embed' : ''}">
+  const body = v.story
+    ? storyBody(v, fmtSize)
+    : `<main class="vs-watch${v.embed ? ' vs-embed' : ''}">
 <div class="vs-player${portrait ? ' vs-portrait' : ''}" data-aspect="${esc(aspect)}">
 <video id="vs-video" class="vs-video" playsinline preload="none" ${v.posterUrl ? `poster="${esc(v.posterUrl)}"` : ''} ${v.masterUrl ? `src="${esc(v.masterUrl)}"` : ''} controls>
 ${v.captions.map((c) => `<track kind="subtitles" srclang="${esc(c.lang)}" label="${esc(c.label)}" src="${esc(c.src)}">`).join('\n')}
@@ -184,7 +192,7 @@ ${v.downloadHref ? `<li><a href="${esc(v.downloadHref)}" data-download="1">${esc
 </section>`
 }
 </main>
-${v.config ? `<script type="application/json" id="vs-config">${jsonForHtml(v.config)}</script>\n<script src="/static/player.js?v=${esc(v.version)}" defer></script>` : ''}`;
+${scripts(v)}`;
   return page({
     lang: v.lang,
     t: v.t,
@@ -194,6 +202,82 @@ ${v.config ? `<script type="application/json" id="vs-config">${jsonForHtml(v.con
     title: v.title,
     head: `<meta name="description" content="${esc(v.description.slice(0, 300))}">\n${og}`,
     body,
-    bodyClass: v.embed ? 'vs-embed-body' : '',
+    bodyClass: v.story ? 'vs-story-body' : v.embed ? 'vs-embed-body' : '',
+    css: v.story ? 'story' : 'watch',
   });
+}
+
+function scripts(v: WatchView): string {
+  return v.config
+    ? `<script type="application/json" id="vs-config">${jsonForHtml(v.config)}</script>\n<script src="/static/${v.story ? 'story' : 'player'}.js?v=${esc(v.version)}" defer></script>`
+    : '';
+}
+
+/** One thumbs question with an optional comment. Rendered twice (end-of-video card, documents page). */
+function feedbackForm(t: PublicStrings, where: 'card' | 'page'): string {
+  const btn = (r: string, emoji: string, label: string) =>
+    `<button type="button" class="vs-fb-btn" data-rating="${r}" aria-pressed="false"><span aria-hidden="true">${emoji}</span> ${esc(label)}</button>`;
+  return `<form class="vs-fb vs-fb-${where}" data-feedback="${where}">
+<p class="vs-fb-q">${esc(t.feedbackQuestion)}</p>
+<div class="vs-fb-row">${btn('up', '👍', t.feedbackUp)}${btn('meh', '🤷', t.feedbackMeh)}${btn('down', '👎', t.feedbackDown)}</div>
+<label class="vs-fb-more" hidden><span class="vs-sr">${esc(t.feedbackComment)}</span>
+<textarea name="comment" maxlength="2000" rows="3" placeholder="${esc(t.feedbackComment)}"></textarea></label>
+<div class="vs-fb-actions">${where === 'card' ? `<button type="button" class="vs-fb-skip">${esc(t.feedbackSkip)}</button>` : ''}<button type="submit" class="vs-fb-send" hidden>${esc(t.feedbackSend)}</button></div>
+<p class="vs-fb-thanks" role="status" hidden>${esc(t.feedbackThanks)}</p>
+</form>`;
+}
+
+/**
+ * Story layout: two full-height panes in a vertical scroll-snap container. Swiping up (or scrolling)
+ * reaches the documents pane without JavaScript; with JS the player adds chapters, tap/hold to pause,
+ * the end-of-video feedback card and the automatic slide.
+ */
+function storyBody(v: WatchView, fmtSize: (n: number) => string): string {
+  const t = v.t;
+  const docs = [
+    ...v.attachments.map(
+      (a) =>
+        `<a class="vs-doc" href="${esc(a.href)}" data-attachment="1"><span class="vs-doc-i" aria-hidden="true">📄</span><span><strong>${esc(a.label)}</strong><small>${esc(fmtSize(a.size))}</small></span></a>`,
+    ),
+    ...(v.downloadHref
+      ? [
+          `<a class="vs-doc" href="${esc(v.downloadHref)}" data-download="1"><span class="vs-doc-i" aria-hidden="true">🎬</span><span><strong>${esc(t.download)}</strong></span></a>`,
+        ]
+      : []),
+  ].join('\n');
+  // Frame follows the video's own shape: phone frame for portrait, cinema frame for landscape.
+  const ratio = v.width && v.height ? Math.min(3, Math.max(0.3, v.width / v.height)) : 9 / 16;
+  const shape = ratio > 1.05 ? 'vs-landscape' : ratio < 0.95 ? 'vs-portrait' : 'vs-square';
+  return `<style nonce="${esc(v.nonce)}">.vs-story-player{--vs-r:${ratio.toFixed(4)}}</style>
+<main class="vs-story" id="vs-story">
+<section class="vs-pane vs-stage" aria-label="${esc(v.title)}">
+${v.posterUrl ? `<img class="vs-backdrop" src="${esc(v.posterUrl)}" alt="" aria-hidden="true">` : ''}
+<div class="vs-player vs-story-player ${shape}">
+<video id="vs-video" class="vs-video" playsinline muted preload="metadata" ${v.posterUrl ? `poster="${esc(v.posterUrl)}"` : ''} ${v.masterUrl ? `src="${esc(v.masterUrl)}"` : ''} controls>
+${v.captions.map((c, i) => `<track kind="subtitles" srclang="${esc(c.lang)}" label="${esc(c.label)}" src="${esc(c.src)}"${i === 0 ? ' default' : ''}>`).join('\n')}
+</video>
+<noscript><p class="vs-noscript">${esc(t.noscript)}</p></noscript>
+<div class="vs-card" hidden>${feedbackForm(t, 'card')}</div>
+</div>
+<a class="vs-swipe" href="#vs-docs">${esc(t.swipeHint)} <span aria-hidden="true">↑</span></a>
+</section>
+<section class="vs-pane vs-docs" id="vs-docs" aria-label="${esc(t.documents)}">
+<div class="vs-docs-in">
+<h1>${esc(v.title)}</h1>
+${
+  v.description
+    ? `<div class="vs-desc">${v.description
+        .split(/\n{2,}/)
+        .map((p) => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`)
+        .join('')}</div>`
+    : ''
+}
+${docs ? `<h2>${esc(t.documents)}</h2><div class="vs-docs-list">${docs}</div>` : ''}
+${v.ctas.length ? `<div class="vs-ctas">${v.ctas.map((c) => `<a class="vs-cta" data-cta="${esc(c.id)}" href="${esc(c.href)}" rel="noopener noreferrer">${esc(c.label)}</a>`).join('')}</div>` : ''}
+${v.config ? feedbackForm(t, 'page') : ''}
+<a class="vs-back" href="#vs-story"><span aria-hidden="true">↓</span> ${esc(t.backToVideo)}</a>
+</div>
+</section>
+</main>
+${scripts(v)}`;
 }

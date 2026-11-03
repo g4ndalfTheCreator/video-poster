@@ -202,6 +202,7 @@ export async function dashboardRoutes(
         byNetworkType: mergeCounts(dims.map((d) => d.n)),
         byOrg: mergeCounts(dims.map((d) => d.o)),
         links,
+        story: await storyStats(sql, { videoId: req.params.id, linkId: q.linkId }),
       };
     },
   );
@@ -219,10 +220,10 @@ export async function dashboardRoutes(
                s.os, s.browser, s.is_bot AS "isBot", i.network_type AS "networkType", coalesce(i.org_guess, s.as_org) AS org, i.confidence,
                ss.completion_pct AS "completionPct", ss.unique_watched_ms AS "uniqueWatchedMs", ss.source, ss.cta_clicks AS "ctaClicks",
                ss.attachment_downloads AS "attachmentDownloads", s.visitor_id AS "visitorId", s.visitor_confidence AS "visitorConfidence",
-               vis.label AS "visitorLabel",
+               vis.label AS "visitorLabel", fb.rating AS "feedbackRating", fb.comment AS "feedbackComment", ss.reached_documents AS "reachedDocuments",
                (SELECT count(DISTINCT x.link_id)::int FROM view_sessions x WHERE x.visitor_id = s.visitor_id AND x.link_id <> s.link_id) AS "otherLinks"
         FROM view_sessions s LEFT JOIN session_summaries ss ON ss.session_id = s.id LEFT JOIN ip_intel i ON i.id = s.ip_intel_id
-        LEFT JOIN visitors vis ON vis.id = s.visitor_id
+        LEFT JOIN visitors vis ON vis.id = s.visitor_id LEFT JOIN feedback fb ON fb.session_id = s.id
         WHERE s.link_id = ${req.params.id} ORDER BY s.started_at DESC LIMIT 500`,
       sql`SELECT p.fetched_at AS "fetchedAt", p.bot_name AS "botName", p.country, coalesce(i.org_guess, i.as_org) AS org, i.network_type AS "networkType"
           FROM link_previews p LEFT JOIN ip_intel i ON i.id = p.ip_intel_id WHERE p.link_id = ${req.params.id} ORDER BY p.fetched_at DESC LIMIT 100`,
@@ -252,6 +253,7 @@ export async function dashboardRoutes(
       sessions: sessions.map((s) => ({ ...s, ip: privileged ? s.ip : null })),
       previews,
       linkEvents: events,
+      story: await storyStats(sql, { linkId: req.params.id }),
     };
   });
 
@@ -517,6 +519,29 @@ export async function dashboardRoutes(
       return { visitorId: id };
     },
   );
+}
+
+/** Story mode: thumbs feedback and how viewers reached the documents page. */
+export async function storyStats(sql: Sql, f: { videoId?: string; linkId?: string }) {
+  const where = sql`WHERE true ${f.videoId ? sql`AND fb.video_id = ${f.videoId}` : sql``} ${f.linkId ? sql`AND fb.link_id = ${f.linkId}` : sql``}`;
+  const [counts, comments, docs] = await Promise.all([
+    sql<
+      { rating: string; n: number }[]
+    >`SELECT rating, count(*)::int AS n FROM feedback fb ${where} GROUP BY 1`,
+    sql`SELECT fb.session_id AS "sessionId", fb.rating, fb.comment, fb.created_at AS "createdAt", l.label AS "linkLabel", l.id AS "linkId"
+        FROM feedback fb JOIN share_links l ON l.id = fb.link_id ${where} AND fb.comment IS NOT NULL ORDER BY fb.created_at DESC LIMIT 30`,
+    sql<{ via: string | null; n: number }[]>`
+      SELECT ss.documents_via AS via, count(*)::int AS n FROM session_summaries ss JOIN view_sessions s ON s.id = ss.session_id
+      WHERE ss.reached_documents AND NOT s.is_bot ${f.videoId ? sql`AND s.video_id = ${f.videoId}` : sql``} ${f.linkId ? sql`AND s.link_id = ${f.linkId}` : sql``}
+      GROUP BY 1`,
+  ]);
+  const n = (r: string) => counts.find((c) => c.rating === r)?.n ?? 0;
+  return {
+    feedback: { up: n('up'), meh: n('meh'), down: n('down') },
+    comments,
+    reachedDocuments: docs.reduce((a, d) => a + d.n, 0),
+    documentsVia: Object.fromEntries(docs.map((d) => [d.via ?? 'unknown', d.n])),
+  };
 }
 
 async function refreshVisitor(sql: Sql, id: string) {

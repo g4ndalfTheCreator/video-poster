@@ -34,6 +34,9 @@ export const EVENT_TYPES = [
   'video_download',
   'error',
   'session_end',
+  'story_documents',
+  'story_feedback_shown',
+  'chapter',
 ] as const;
 export type ClientEventType = (typeof EVENT_TYPES)[number];
 
@@ -107,6 +110,9 @@ export const payloadSchemas = {
     message: tstr(200).optional(),
   }),
   session_end: z.object({ exit_reason: z.enum(['closed', 'navigated', 'idle']).optional() }),
+  story_documents: z.object({ via: z.enum(['swipe', 'ended', 'button']) }),
+  story_feedback_shown: z.object({}),
+  chapter: z.object({ index: z.number().int().min(0).max(50) }),
 } satisfies Record<ClientEventType, z.ZodType>;
 
 const baseEvent = z.object({

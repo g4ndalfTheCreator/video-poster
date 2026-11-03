@@ -3,6 +3,16 @@
 All notable changes are documented here. Versions follow semantic versioning; database migrations are
 forward-only.
 
+## 0.2.0 – 2026-11-03
+
+- Story mode: full-screen mobile flow (muted autoplay with tap for sound, captions on, chapters,
+  tap/hold to pause, swipe up to the CV and cover letter page), a one-tap 👍/🤷/👎 feedback card after the
+  video (repeated on the documents page), comment notifications, feedback and "reached documents"
+  statistics in the admin. Enabled per video, overridable per link. Migration `0006_story_mode.sql`.
+- Story mode on desktop and for horizontal video: aspect-aware frame over a blurred poster backdrop,
+  letterboxed landscape video on upright phones (full screen when rotated), keyboard navigation, and
+  separate classic/story player bundles and stylesheets.
+
 ## 0.1.0 – 2026-11-03
 
 First complete version (milestones M0–M7 of `docs/SPEC.md`):
