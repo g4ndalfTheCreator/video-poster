@@ -54,6 +54,8 @@ interface ResolvedLink {
   width: number | null;
   height: number | null;
   autoplay_muted: boolean;
+  story_mode: boolean;
+  chapters: { atMs: number; title: string }[];
   video_cta: Cta[];
 }
 
@@ -67,7 +69,7 @@ async function resolveSlug(sql: Sql, slug: string): Promise<Resolution> {
   const rows = await sql<ResolvedLink[]>`
     SELECT l.id, l.slug, l.video_id, l.password_hash, l.expires_at, l.max_sessions, l.session_count, l.is_active, l.allow_download,
            l.allow_embed, l.cta_config, l.label, v.title, v.description, v.status, v.hls_version, v.duration_ms, v.width, v.height,
-           v.autoplay_muted, v.cta_config AS video_cta
+           v.autoplay_muted, v.cta_config AS video_cta, coalesce(l.story_mode, v.story_mode) AS story_mode, v.chapters
     FROM share_links l JOIN videos v ON v.id = l.video_id
     WHERE l.slug = ${slug} AND l.deleted_at IS NULL AND v.deleted_at IS NULL`;
   const link = rows[0];
@@ -180,6 +182,8 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
       return reply.send(
         watchPage({
           ...base,
+          story: false,
+          chapters: [],
           posterUrl: null,
           masterUrl: null,
           attachments: [],
@@ -278,7 +282,9 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
       master,
       spriteVtt: sign('sprite.vtt'),
       durationMs: link.duration_ms,
-      autoplayMuted: link.autoplay_muted,
+      autoplayMuted: link.autoplay_muted || link.story_mode,
+      story: link.story_mode ? { chapters: link.chapters ?? [] } : null,
+      feedbackUrl: '/t/v1/feedback',
       telemetry: clientTelemetry ? 'full' : 'off',
       playbackUrl: `/api/public/links/${link.slug}/playback`,
       ingestUrl: '/t/v1/events',
@@ -300,12 +306,17 @@ export async function publicRoutes(app: FastifyInstance, ctx: AppContext) {
         auto: t.auto,
         pip: t.pip,
         error: t.error,
+        tapForSound: t.tapForSound,
+        swipeHint: t.swipeHint,
+        thanks: t.feedbackThanks,
       },
     };
     setPageHeaders(reply, ctx.config, { nonce, embed });
     return reply.send(
       watchPage({
         ...base,
+        story: link.story_mode && !embed,
+        chapters: link.chapters ?? [],
         posterUrl: sign('poster.jpg'),
         masterUrl: master,
         attachments,

@@ -132,6 +132,12 @@ export async function analyticsRoutes(fastify: FastifyInstance, ctx: AppContext)
           exitReason: s.exit_reason,
         },
         fingerprint: fp[0] ?? null,
+        feedback:
+          (
+            await sql`SELECT rating, comment, created_at AS "createdAt" FROM feedback WHERE session_id = ${req.params.id}`
+          )[0] ?? null,
+        reachedDocuments: s.reached_documents,
+        documentsVia: s.documents_via,
         events,
         segmentFetches: fetches,
       };

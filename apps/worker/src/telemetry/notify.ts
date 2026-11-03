@@ -221,6 +221,32 @@ export async function notifySummary(deps: NotifyDeps, sessionId: string): Promis
   return true;
 }
 
+/** A viewer left a written comment (story-mode feedback). Sent once per session. */
+export async function notifyFeedback(deps: NotifyDeps, sessionId: string): Promise<boolean> {
+  const { sql } = deps;
+  const f = await sql<
+    { rating: string; comment: string | null; label: string; title: string; link_id: string }[]
+  >`
+    UPDATE feedback f SET notified_at = now() FROM share_links l, videos v
+    WHERE f.session_id = ${sessionId} AND f.notified_at IS NULL AND f.comment IS NOT NULL AND l.id = f.link_id AND v.id = f.video_id
+    RETURNING f.rating, f.comment, l.label, v.title, f.link_id`;
+  const r = f[0];
+  if (!r) return false;
+  const emoji = r.rating === 'up' ? '👍' : r.rating === 'down' ? '👎' : '🤷';
+  await deliver(
+    deps,
+    {
+      title: `Palaute linkiltä '${r.label}' ${emoji}`,
+      body: `${r.comment!.slice(0, 1000)}\nVideo: ${r.title}`,
+      url: `${deps.config.publicOrigin}/admin/sessions/${sessionId}`,
+    },
+    sessionId,
+    r.link_id,
+    'feedback',
+  );
+  return true;
+}
+
 /** Sends a test message to one channel (admin "Test" button). */
 export async function notifyTest(deps: NotifyDeps, channelId: string): Promise<void> {
   const ch = await deps.sql`SELECT id FROM notification_channels WHERE id = ${channelId}`;

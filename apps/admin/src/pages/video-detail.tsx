@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import type { Cta, VideoStatus } from '@vs/shared';
+import type { Chapter, Cta, VideoStatus } from '@vs/shared';
 import { api, del, get, patch, post } from '../lib/api';
 import { can, useMe } from '../lib/auth';
 import { fmtBytes, fmtDateTime, fmtDuration } from '../lib/format';
@@ -36,6 +36,8 @@ export interface VideoDetail {
   hlsVersion: number;
   posterAtMs: number | null;
   autoplayMuted: boolean;
+  storyMode: boolean;
+  chapters: Chapter[];
   loudnorm: boolean;
   ctaConfig: Cta[];
   error: string | null;
@@ -132,6 +134,8 @@ function DetailsTab({ v, progress, seekTo }: { v: VideoDetail; progress: number 
     autoplayMuted: v.autoplayMuted,
     loudnorm: v.loudnorm,
     ctaConfig: v.ctaConfig,
+    storyMode: v.storyMode,
+    chapters: v.chapters,
   });
   const [confirm, setConfirm] = useState<'delete' | 'purge' | null>(null);
   useEffect(
@@ -142,10 +146,16 @@ function DetailsTab({ v, progress, seekTo }: { v: VideoDetail; progress: number 
         autoplayMuted: v.autoplayMuted,
         loudnorm: v.loudnorm,
         ctaConfig: v.ctaConfig,
+        storyMode: v.storyMode,
+        chapters: v.chapters,
       }),
     [v],
   );
-  const save = useMutation({ mutationFn: () => patch(`/videos/${v.id}`, form), onSuccess: refresh });
+  const save = useMutation({
+    mutationFn: () =>
+      patch(`/videos/${v.id}`, { ...form, chapters: form.chapters.filter((c) => c.title.trim()) }),
+    onSuccess: refresh,
+  });
   const retranscode = useMutation({
     mutationFn: () => post(`/videos/${v.id}/retranscode`),
     onSuccess: refresh,
@@ -303,6 +313,19 @@ function DetailsTab({ v, progress, seekTo }: { v: VideoDetail; progress: number 
                 onChange={(ctaConfig) => setForm({ ...form, ctaConfig })}
                 title={t('video.cta')}
               />
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <Checkbox
+                  label={t('story.mode')}
+                  checked={form.storyMode}
+                  onChange={(x) => setForm({ ...form, storyMode: x })}
+                />
+                <p className="text-xs text-muted-fg">{t('story.modeHint')}</p>
+                <ChapterEditor
+                  value={form.chapters}
+                  onChange={(chapters) => setForm({ ...form, chapters })}
+                  currentMs={() => player.current?.currentTimeMs() ?? 0}
+                />
+              </div>
             </fieldset>
             <ErrorText error={save.error} />
             {editor && (
@@ -375,6 +398,74 @@ function DetailsTab({ v, progress, seekTo }: { v: VideoDetail; progress: number 
           })
         }
       />
+    </div>
+  );
+}
+
+function mmss(ms: number) {
+  const sec = Math.round(ms / 1000);
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+function parseMmss(v: string): number | null {
+  const m = /^(\d+):([0-5]?\d)$/.exec(v.trim());
+  if (m) return (Number(m[1]) * 60 + Number(m[2])) * 1000;
+  return /^\d+$/.test(v.trim()) ? Number(v) * 1000 : null;
+}
+
+/** Chapter list (mm:ss + title) for the story-mode progress bar. */
+export function ChapterEditor({
+  value,
+  onChange,
+  currentMs,
+}: {
+  value: Chapter[];
+  onChange: (v: Chapter[]) => void;
+  currentMs: () => number;
+}) {
+  const { t } = useTranslation();
+  const sorted = (c: Chapter[]) => [...c].sort((a, b) => a.atMs - b.atMs);
+  return (
+    <div className="space-y-2">
+      <div className="text-sm font-medium">{t('story.chapters')}</div>
+      {value.map((c, i) => (
+        <div key={`${i}-${c.atMs}`} className="flex gap-2">
+          <Input
+            aria-label="mm:ss"
+            className="w-20 tabular-nums"
+            defaultValue={mmss(c.atMs)}
+            onBlur={(e) => {
+              const ms = parseMmss(e.target.value);
+              if (ms !== null) onChange(sorted(value.map((x, j) => (j === i ? { ...x, atMs: ms } : x))));
+            }}
+          />
+          <Input
+            placeholder={t('story.chapterTitle')}
+            value={c.title}
+            maxLength={80}
+            onChange={(e) => onChange(value.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onChange(value.filter((_, j) => j !== i))}
+            aria-label={t('app.delete')}
+          >
+            ✕
+          </Button>
+        </div>
+      ))}
+      {value.length < 20 && (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() =>
+            onChange(sorted([...value, { atMs: Math.round(currentMs() / 1000) * 1000, title: '' }]))
+          }
+        >
+          {t('story.addChapter')}
+        </Button>
+      )}
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { fmtDateTime, fmtDuration, fmtNum, fmtPct } from '../lib/format';
 import { Badge, Button, Card, ConfirmDialog, ErrorText, Stat, Table } from '../components/ui';
 import { PageHeader } from '../components/layout';
 import { KpiGrid } from '../components/charts';
-import { NetworkCell } from './link-extras';
+import { FEEDBACK_EMOJI, NetworkCell } from './link-extras';
 
 type R = [number, number];
 interface Ev {
@@ -90,6 +90,9 @@ interface Detail {
     attachmentDownloads: number;
     exitReason: string | null;
   };
+  feedback: { rating: 'up' | 'meh' | 'down'; comment: string | null; createdAt: string } | null;
+  reachedDocuments: boolean;
+  documentsVia: string | null;
   fingerprint: {
     fpHash: string;
     randomized: boolean;
@@ -276,6 +279,14 @@ export function SessionDetailPage() {
               )}
               {kv('DNT / GPC', `${d.dnt ? 'DNT' : '–'} / ${d.gpc ? 'GPC' : '–'}`)}
               {kv(t('sess.exit'), s.exitReason)}
+              {kv(
+                t('story.docs'),
+                d.reachedDocuments ? `✓ ${t(`story.via.${d.documentsVia ?? 'unknown'}`)}` : null,
+              )}
+              {kv(
+                t('story.feedback'),
+                d.feedback ? `${FEEDBACK_EMOJI[d.feedback.rating]} ${d.feedback.comment ?? ''}` : null,
+              )}
             </dl>
           </Card>
           <Card title={t('sess.visitor')}>

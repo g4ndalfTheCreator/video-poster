@@ -36,6 +36,7 @@ interface LinkRow {
   allow_embed: boolean;
   notify_on_open: boolean;
   notify_every_open: boolean;
+  story_mode: boolean | null;
   cta_config: Cta[] | null;
   session_count: number;
   first_opened_at: Date | null;
@@ -67,6 +68,7 @@ export function serializeLink(ctx: AppContext, l: LinkRow) {
     allowEmbed: l.allow_embed,
     notifyOnOpen: l.notify_on_open,
     notifyEveryOpen: l.notify_every_open,
+    storyMode: l.story_mode,
     ctaConfig: l.cta_config,
     sessionCount: l.session_count,
     sessions: l.human_sessions ?? l.session_count,
@@ -169,11 +171,11 @@ export async function linkRoutes(fastify: FastifyInstance, ctx: AppContext) {
     const id = newId();
     const rows = await sql<LinkRow[]>`
       INSERT INTO share_links (id, video_id, slug, label, recipient_name, recipient_org, note, password_hash, expires_at, max_sessions,
-                               is_active, allow_download, allow_embed, notify_on_open, notify_every_open, cta_config, created_by)
+                               is_active, allow_download, allow_embed, notify_on_open, notify_every_open, cta_config, story_mode, created_by)
       VALUES (${id}, ${videoId}, ${slug}, ${body.label}, ${body.recipientName ?? null}, ${body.recipientOrg ?? null}, ${body.note ?? null},
               ${body.password ? await hashPassword(body.password) : null}, ${body.expiresAt ?? null}, ${body.maxSessions ?? null},
               ${body.isActive}, ${body.allowDownload}, ${body.allowEmbed}, ${body.notifyOnOpen}, ${body.notifyEveryOpen},
-              ${body.ctaConfig ? sql.json(body.ctaConfig as never) : null}, ${actor})
+              ${body.ctaConfig ? sql.json(body.ctaConfig as never) : null}, ${body.storyMode ?? null}, ${actor})
       RETURNING *`;
     return rows[0]!;
   };
@@ -267,6 +269,7 @@ export async function linkRoutes(fastify: FastifyInstance, ctx: AppContext) {
         allow_embed = ${b.allowEmbed ?? before.allow_embed},
         notify_on_open = ${b.notifyOnOpen ?? before.notify_on_open},
         notify_every_open = ${b.notifyEveryOpen ?? before.notify_every_open},
+        story_mode = ${has('storyMode') ? (b.storyMode ?? null) : before.story_mode},
         cta_config = ${has('ctaConfig') ? (b.ctaConfig ? sql.json(b.ctaConfig as never) : null) : before.cta_config ? sql.json(before.cta_config as never) : null},
         updated_at = now()
       WHERE id = ${before.id} RETURNING *`;

@@ -73,7 +73,7 @@ export class Player {
   on(fn: Listener) {
     this.listeners.push(fn);
   }
-  private emit(type: string, data: Record<string, unknown> = {}) {
+  emit(type: string, data: Record<string, unknown> = {}) {
     for (const l of this.listeners) l({ type, ...data });
   }
 
@@ -200,8 +200,10 @@ export class Player {
     r.append(big, bar, this.menu, this.errorEl);
 
     const v = this.video;
-    v.addEventListener('click', () => this.toggle());
-    v.addEventListener('dblclick', () => void this.toggleFullscreen());
+    if (!this.cfg.story) {
+      v.addEventListener('click', () => this.toggle());
+      v.addEventListener('dblclick', () => void this.toggleFullscreen());
+    }
     const sync = () => {
       const playing = !v.paused && !v.ended;
       r.classList.toggle('vs-playing', playing);

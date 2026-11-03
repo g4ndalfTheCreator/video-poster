@@ -6,6 +6,7 @@ import { fmtDuration, fmtNum, fmtPct, fmtRelative } from '../lib/format';
 import { Button, Card, Empty, Table } from '../components/ui';
 import { BarList, HeatStrip, RetentionChart, useSpriteCues } from '../components/charts';
 import { KpiRow, type Kpis } from './dashboard';
+import { FEEDBACK_EMOJI } from './link-extras';
 
 interface VideoAnalytics {
   video: { id: string; title: string; durationMs: number; preview: { spriteVtt: string } | null };
@@ -19,6 +20,19 @@ interface VideoAnalytics {
   byReferrer: { key: string; count: number }[];
   byNetworkType: { key: string; count: number }[];
   byOrg: { key: string; count: number }[];
+  story: {
+    feedback: { up: number; meh: number; down: number };
+    comments: {
+      sessionId: string;
+      rating: 'up' | 'meh' | 'down';
+      comment: string;
+      createdAt: string;
+      linkLabel: string;
+      linkId: string;
+    }[];
+    reachedDocuments: number;
+    documentsVia: Record<string, number>;
+  };
   links: {
     id: string;
     label: string;
@@ -80,6 +94,9 @@ export function VideoAnalyticsView({
           </>
         )}
       </Card>
+      {d.story.reachedDocuments + d.story.feedback.up + d.story.feedback.meh + d.story.feedback.down > 0 && (
+        <StoryCard story={d.story} />
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card title={t('an.dropOffs')}>
           <ol className="space-y-1.5 text-sm">
@@ -166,5 +183,52 @@ export function VideoAnalyticsView({
         </Table>
       </Card>
     </div>
+  );
+}
+
+function StoryCard({ story }: { story: VideoAnalytics['story'] }) {
+  const { t } = useTranslation();
+  const f = story.feedback;
+  return (
+    <Card title={t('story.card')}>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div>
+          <h3 className="mb-2 text-xs font-medium text-muted-fg">{t('story.feedback')}</h3>
+          <BarList
+            items={[
+              { key: 'up', count: f.up },
+              { key: 'meh', count: f.meh },
+              { key: 'down', count: f.down },
+            ]}
+            labelOf={(k) => `${FEEDBACK_EMOJI[k as 'up']} ${t(`story.${k}`)}`}
+          />
+        </div>
+        <div>
+          <h3 className="mb-2 text-xs font-medium text-muted-fg">
+            {t('story.reached')}: {fmtNum(story.reachedDocuments)}
+          </h3>
+          <BarList
+            items={Object.entries(story.documentsVia).map(([key, count]) => ({ key, count }))}
+            labelOf={(k) => t(`story.via.${k}`, { defaultValue: k })}
+          />
+        </div>
+        <div>
+          <h3 className="mb-2 text-xs font-medium text-muted-fg">{t('story.comments')}</h3>
+          <ul className="space-y-2 text-sm">
+            {story.comments.map((c) => (
+              <li key={c.sessionId}>
+                <span aria-hidden>{FEEDBACK_EMOJI[c.rating]}</span> {c.comment}
+                <div className="text-xs text-muted-fg">
+                  <Link to="/sessions/$id" params={{ id: c.sessionId }} className="hover:underline">
+                    {c.linkLabel}
+                  </Link>{' '}
+                  · {fmtRelative(c.createdAt)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Card>
   );
 }

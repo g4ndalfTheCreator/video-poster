@@ -125,6 +125,7 @@ export async function gdprRoutes(fastify: FastifyInstance, ctx: AppContext) {
       sessions,
       summaries,
       events,
+      feedback: await sql`SELECT * FROM feedback WHERE session_id = ANY(${ids})`,
       segmentFetches: fetches,
       browserProfiles: fingerprints,
       ipOwnerData: intel,

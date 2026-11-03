@@ -49,7 +49,28 @@ export interface Page<T> {
 }
 
 // ---------- videos ----------
+export const chapterSchema = z.object({ atMs: z.number().int().min(0), title: z.string().min(1).max(80) });
+export const chaptersSchema = z
+  .array(chapterSchema)
+  .max(20)
+  .transform((c) => [...c].sort((a, b) => a.atMs - b.atMs));
+export type Chapter = z.infer<typeof chapterSchema>;
+
+export const FEEDBACK_RATINGS = ['up', 'meh', 'down'] as const;
+export type FeedbackRating = (typeof FEEDBACK_RATINGS)[number];
+export const feedbackSchema = z.object({
+  token: z.string().min(10).max(512),
+  rating: z.enum(FEEDBACK_RATINGS),
+  comment: z
+    .string()
+    .max(2000)
+    .transform((s) => s.trim() || undefined)
+    .optional(),
+});
+
 export const videoPatchSchema = z.object({
+  storyMode: z.boolean().optional(),
+  chapters: chaptersSchema.optional(),
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(5000).optional(),
   autoplayMuted: z.boolean().optional(),
@@ -94,6 +115,8 @@ export const linkCreateSchema = z.object({
   notifyOnOpen: z.boolean().default(true),
   notifyEveryOpen: z.boolean().default(false),
   ctaConfig: ctaConfigSchema.nullable().optional(),
+  /** null = follow the video's story-mode setting */
+  storyMode: z.boolean().nullable().optional(),
 });
 export type LinkCreate = z.input<typeof linkCreateSchema>;
 

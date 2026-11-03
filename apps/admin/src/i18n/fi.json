@@ -414,5 +414,30 @@
     "confirm": "Poistetaanko {{n}} istuntoa ja niihin liittyvät tapahtumat, segmenttilokit ja selainprofiilit pysyvästi? Toimintoa ei voi perua.",
     "deleted": "Poistettu {{n}} istuntoa",
     "deleteSession": "Poista istunto pysyvästi"
+  },
+  "story": {
+    "mode": "Tarinatila (koko näytön mobiilikokemus: video → palaute → CV ja hakemus)",
+    "modeHint": "Linkkikohtaisesti voi ohittaa linkin lisäasetuksissa.",
+    "chapters": "Luvut",
+    "chapterTitle": "Luvun nimi",
+    "addChapter": "Lisää luku nykyiseen kohtaan",
+    "linkSetting": "Tarinatila",
+    "followVideo": "Videon asetus",
+    "on": "Päällä",
+    "off": "Pois",
+    "card": "Tarinatila: palaute ja dokumentit",
+    "up": "Kyllä",
+    "meh": "En osaa sanoa",
+    "down": "Ei",
+    "comments": "Kommentit",
+    "reached": "Siirtyi dokumentteihin",
+    "via": {
+      "swipe": "pyyhkäisemällä",
+      "ended": "videon jälkeen",
+      "button": "painikkeesta",
+      "unknown": "tuntematon"
+    },
+    "feedback": "Palaute",
+    "docs": "Dokumentit"
   }
 }

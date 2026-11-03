@@ -27,7 +27,8 @@ await build({
 
 const js = gzipSync(await readFile('dist/player.js')).length;
 const css = gzipSync(await readFile('dist/player.css')).length;
-const htmlEstimate = 3 * 1024;
+// Largest page (story layout) measured by apps/api/test/story.test.ts, which checks the real total.
+const htmlEstimate = 2.4 * 1024;
 const total = js + css + htmlEstimate;
 const report = { js, css, htmlEstimate, total, budget: BUDGET };
 await writeFile('dist/size.json', JSON.stringify(report, null, 2));

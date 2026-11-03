@@ -14,6 +14,7 @@ import {
   canonicalJson,
   clientEventSchema,
   emptySummary,
+  feedbackSchema,
   ingestBatchSchema,
   INGEST_MAX_BYTES,
   stableSubset,
@@ -209,6 +210,11 @@ export async function ingestBatch(
         visitor_confidence = CASE WHEN ${visitorId !== null} THEN 'exact' ELSE visitor_confidence END,
         first_play_at = CASE WHEN ${played} THEN coalesce(first_play_at, now()) ELSE first_play_at END
       WHERE id = ${token.s}`;
+    const docs = fresh.find((e) => e.type === 'story_documents');
+    if (docs) {
+      await tx`UPDATE session_summaries SET reached_documents = true, documents_via = coalesce(documents_via, ${String(docs.payload.via)})
+               WHERE session_id = ${token.s}`;
+    }
     const hb = fresh.filter((e) => e.type === 'heartbeat').pop();
     return {
       accepted: fresh.length,
@@ -243,7 +249,39 @@ export async function ingestBatch(
   };
 }
 
+/**
+ * Viewer feedback (story mode): one thumbs answer per session, optionally with a comment; a later
+ * answer replaces the earlier one. Accepted at every telemetry level because the viewer gives it
+ * explicitly; never for sessions that were not stored (blocklist).
+ */
+export async function saveFeedback(ctx: AppContext, raw: unknown): Promise<number> {
+  const sql = ctx.database.sql;
+  const body = feedbackSchema.safeParse(raw);
+  if (!body.success) return 400;
+  const token = verifyIngestToken(ctx.config.INGEST_SIGNING_KEY, body.data.token);
+  if (!token) return 401;
+  const s = await sql<
+    { link_id: string; video_id: string }[]
+  >`SELECT link_id, video_id FROM view_sessions WHERE id = ${token.s} AND link_id = ${token.l}`;
+  if (!s[0]) return 204;
+  const rows = await sql<{ comment: string | null; notified_at: Date | null }[]>`
+    INSERT INTO feedback (session_id, link_id, video_id, rating, comment)
+    VALUES (${token.s}, ${s[0].link_id}, ${s[0].video_id}, ${body.data.rating}, ${body.data.comment ?? null})
+    ON CONFLICT (session_id) DO UPDATE SET rating = EXCLUDED.rating, comment = coalesce(EXCLUDED.comment, feedback.comment), updated_at = now()
+    RETURNING comment, notified_at`;
+  if (rows[0]?.comment && !rows[0].notified_at) {
+    await ctx.jobs.send(QUEUES.notify, { kind: 'feedback', sessionId: token.s } satisfies NotifyJob, {
+      singletonKey: `feedback:${token.s}`,
+    });
+  }
+  return 204;
+}
+
 export async function ingestRoutes(app: FastifyInstance, ctx: AppContext) {
+  app.post('/t/v1/feedback', { bodyLimit: 8 * 1024 }, async (req, reply) => {
+    reply.header('cache-control', 'no-store');
+    return reply.code(await saveFeedback(ctx, req.body)).send();
+  });
   const respond = async (req: FastifyRequest, reply: FastifyReply, body: unknown) => {
     reply.header('cache-control', 'no-store');
     const r = await ingestBatch(ctx, body, req);

@@ -414,5 +414,30 @@
     "confirm": "Permanently delete {{n}} sessions and their events, segment logs and browser profiles? This cannot be undone.",
     "deleted": "Deleted {{n}} sessions",
     "deleteSession": "Delete session permanently"
+  },
+  "story": {
+    "mode": "Story mode (full-screen mobile flow: video → feedback → CV and cover letter)",
+    "modeHint": "Can be overridden per link in the link's advanced settings.",
+    "chapters": "Chapters",
+    "chapterTitle": "Chapter title",
+    "addChapter": "Add chapter at current position",
+    "linkSetting": "Story mode",
+    "followVideo": "Video setting",
+    "on": "On",
+    "off": "Off",
+    "card": "Story mode: feedback and documents",
+    "up": "Yes",
+    "meh": "Not sure",
+    "down": "No",
+    "comments": "Comments",
+    "reached": "Reached the documents",
+    "via": {
+      "swipe": "by swiping",
+      "ended": "after the video",
+      "button": "via the button",
+      "unknown": "unknown"
+    },
+    "feedback": "Feedback",
+    "docs": "Documents"
   }
 }

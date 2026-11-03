@@ -40,7 +40,8 @@ export interface MatchVisitorJob {
   sessionId: string;
   fingerprintId: string;
 }
-export type NotifyJob = { kind: 'open' | 'summary'; sessionId: string } | { kind: 'test'; channelId: string };
+export type NotifyJob =
+  { kind: 'open' | 'summary' | 'feedback'; sessionId: string } | { kind: 'test'; channelId: string };
 
 export function createBoss(databaseUrl: string): PgBoss {
   return new PgBoss({ connectionString: databaseUrl, schema: 'pgboss', max: 4 });
