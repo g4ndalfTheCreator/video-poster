@@ -1,6 +1,9 @@
 // Page components; placeholders are replaced as milestones land.
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '../components/layout';
+import { VideosPage } from './videos';
+import { VideoDetailPage } from './video-detail';
+import { UploadPage } from './upload';
 
 function Placeholder({ title }: { title: string }) {
   const { t } = useTranslation();
@@ -9,9 +12,9 @@ function Placeholder({ title }: { title: string }) {
 
 export const pages = {
   Dashboard: () => <Placeholder title="nav.dashboard" />,
-  Videos: () => <Placeholder title="nav.videos" />,
-  VideoDetail: () => <Placeholder title="nav.videos" />,
-  Upload: () => <Placeholder title="nav.upload" />,
+  Videos: VideosPage,
+  VideoDetail: VideoDetailPage,
+  Upload: UploadPage,
   LinkDetail: () => <Placeholder title="nav.videos" />,
   Analytics: () => <Placeholder title="nav.analytics" />,
   Sessions: () => <Placeholder title="nav.sessions" />,

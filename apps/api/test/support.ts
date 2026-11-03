@@ -4,7 +4,7 @@ import { buildApp } from '../src/app.js';
 import { ensureBootstrapToken } from '../src/lib/bootstrap.js';
 import { totpAt, currentStep } from '../src/lib/totp.js';
 import { createTestDatabase, testConfig } from '../../../test/helpers.js';
-import type { AppContext } from '../src/context.js';
+import { memoryJobs, type AppContext } from '../src/context.js';
 import type { Config } from '@vs/core';
 
 export interface TestApp {
@@ -22,7 +22,7 @@ export async function makeApp(
   const ctx: AppContext = {
     config,
     database: t.database,
-    boss: null,
+    jobs: memoryJobs(),
     log: pino({ level: process.env.TEST_LOG_LEVEL ?? 'silent' }),
     ...extra,
   };

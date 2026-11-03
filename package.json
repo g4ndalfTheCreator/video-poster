@@ -21,7 +21,8 @@
     "dev:admin": "pnpm --filter @vs/admin dev",
     "db:migrate": "pnpm --filter @vs/core migrate",
     "seed:telemetry": "pnpm --filter @vs/worker seed:telemetry",
-    "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -r -o sbom.json ."
+    "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -r -o sbom.json .",
+    "fixtures": "tsx -e \"import('./test/fixtures.ts').then(m=>m.ensureFixtures())\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

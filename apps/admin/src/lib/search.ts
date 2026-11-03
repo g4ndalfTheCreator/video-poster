@@ -1,6 +1,6 @@
 /** Helpers for typed URL search params (shareable list views). */
 export interface ListSearch {
-  page: number;
+  page?: number;
   pageSize?: number;
   sort?: string;
   dir?: 'asc' | 'desc';

@@ -82,3 +82,16 @@ enforced by nginx `limit_req`.
 
 `@cyclonedx/cyclonedx-npm` only understands npm's `node_modules` layout and fails on pnpm workspaces.
 The CycloneDX SBOM is generated with CycloneDX's `cdxgen` (`pnpm sbom`), which reads `pnpm-lock.yaml`.
+
+## D14 – Storage layout and file delivery
+
+`MEDIA_ROOT/originals/<video>/source.<ext>` (immutable), `hls/<video>/<version>/` (playlists, segments,
+`poster.jpg`, `sprite.jpg`, `sprite.vtt`, optional `download.mp4`), `assets/<video>/<asset>.<ext>`
+(captions, attachments), `uploads/` (tus), `tmp/<job>/` (work dirs, renamed atomically into `hls/`). The
+current and the previous HLS version are kept. Files that need authorisation and logging (captions,
+attachments, MP4 download) go through the api, which hands the transfer to nginx with `X-Accel-Redirect`.
+
+## D15 – Download MP4 is produced on demand
+
+The 720p MP4 is transcoded by a separate `make_download` job the first time a link with
+`allow_download` exists for the video version, instead of on every transcode (CPU-only host).

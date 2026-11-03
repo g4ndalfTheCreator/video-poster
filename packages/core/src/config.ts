@@ -30,6 +30,8 @@ const envSchema = z.object({
   TRUSTED_PROXIES: csv('127.0.0.1/32,::1/128,172.16.0.0/12'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   MEDIA_ROOT: z.string().default('/srv/media'),
+  /** When true, file downloads are handed to nginx with X-Accel-Redirect (/_protected/). */
+  MEDIA_ACCEL: bool,
   GEOIP_DIR: z.string().default('/srv/geoip'),
   MEDIA_SIGNING_KEY: key('MEDIA_SIGNING_KEY'),
   INGEST_SIGNING_KEY: key('INGEST_SIGNING_KEY'),

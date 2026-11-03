@@ -12,3 +12,4 @@ playwright-report/
 *.tsbuildinfo
 deploy/.sandbox-ca.crt
 sbom.json
+fixtures/

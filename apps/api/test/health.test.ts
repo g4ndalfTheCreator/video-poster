@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { pino } from 'pino';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.js';
+import { memoryJobs } from '../src/context.js';
 import { createTestDatabase, testConfig } from '../../../test/helpers.js';
 
 describe('healthz', () => {
@@ -13,7 +14,7 @@ describe('healthz', () => {
     app = await buildApp({
       config: testConfig(),
       database: t.database,
-      boss: null,
+      jobs: memoryJobs(),
       log: pino({ level: 'silent' }),
     });
   });

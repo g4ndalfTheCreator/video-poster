@@ -37,9 +37,18 @@ async function main() {
   const boss = createBoss(config.DATABASE_URL);
   boss.on('error', (err) => log.error({ err }, 'pg-boss error'));
   await boss.start();
-  await ensureQueues(boss);
+  await ensureQueues(boss, database.sql);
 
-  const app = await buildApp({ config, database, boss, log });
+  const jobs = {
+    async send(
+      queue: Parameters<typeof boss.send>[0],
+      data: object,
+      opts?: { singletonKey?: string; startAfter?: number },
+    ) {
+      await boss.send(queue, data, opts ?? {});
+    },
+  };
+  const app = await buildApp({ config, database, jobs, log });
   await app.listen({ port: config.PORT, host: config.HOST });
 
   const shutdown = async () => {

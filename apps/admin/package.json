@@ -11,8 +11,13 @@
   "dependencies": {
     "@tanstack/react-query": "^5.90.0",
     "@tanstack/react-router": "^1.133.0",
+    "@uppy/core": "^5.2.0",
+    "@uppy/dashboard": "^5.1.1",
+    "@uppy/react": "^5.2.0",
+    "@uppy/tus": "^5.1.1",
     "@vs/shared": "workspace:*",
     "clsx": "^2.1.1",
+    "hls.js": "~1.6.19",
     "i18next": "^25.6.0",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",

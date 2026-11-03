@@ -1,7 +1,10 @@
 import PgBoss from 'pg-boss';
+import type { Sql } from './db.js';
 
 export const QUEUES = {
   transcode: 'transcode',
+  poster: 'poster',
+  makeDownload: 'make_download',
   ipEnrich: 'ip_enrich',
   matchVisitor: 'match_visitor',
   notify: 'notify',
@@ -20,6 +23,14 @@ export interface TranscodeJob {
   videoId: string;
   jobId: string;
 }
+export interface PosterJob {
+  videoId: string;
+  atMs?: number;
+  imagePath?: string;
+}
+export interface DownloadJob {
+  videoId: string;
+}
 export interface IpEnrichJob {
   ip: string;
 }
@@ -36,7 +47,18 @@ export function createBoss(databaseUrl: string): PgBoss {
   return new PgBoss({ connectionString: databaseUrl, schema: 'pgboss', max: 4 });
 }
 
-export async function ensureQueues(boss: PgBoss): Promise<void> {
+/**
+ * Creates missing queues. Serialised across processes with an advisory lock: api and worker start
+ * at the same time and concurrent pgboss.create_queue calls can deadlock.
+ */
+export async function ensureQueues(boss: PgBoss, sql: Sql): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(727002)`;
+    await createMissing(boss);
+  });
+}
+
+async function createMissing(boss: PgBoss): Promise<void> {
   for (const name of Object.values(QUEUES)) {
     const existing = await boss.getQueue(name);
     if (!existing) {
