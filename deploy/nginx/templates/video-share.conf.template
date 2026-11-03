@@ -1,0 +1,97 @@
+server {
+  listen 8080 default_server;
+  include /etc/nginx/generated/tls.conf;
+  server_name _;
+  client_max_body_size 2m;
+  root /usr/share/nginx/empty;
+  autoindex off;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $remote_addr;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Client-Protocol $server_protocol;
+  proxy_set_header X-Client-TLS $ssl_protocol;
+
+  # ---------------------------------------------------------------- media (signed)
+  # /media/<token>/<expires>/<session>/<video>/<version>/<file>
+  location ~ "^/media/(?<mtoken>[A-Za-z0-9_-]{22})/(?<mexp>[0-9]{1,12})/(?<msess>[0-9a-f-]{36})/(?<mvid>[0-9a-f-]{36})/(?<mver>[0-9]{1,6})/(?<mfile>[A-Za-z0-9_-]{1,64}\.(?:m3u8|m4s|mp4|vtt|jpg|webp))$" {
+    secure_link $mtoken,$mexp;
+    secure_link_md5 "$mexp$msess$mvid$mver ${MEDIA_SIGNING_KEY}";
+    if ($secure_link = "") { return 403; }
+    if ($secure_link = "0") { return 403; }
+    access_log syslog:server=${SYSLOG_TARGET},tag=vsmedia,nohostname media;
+    access_log /dev/stdout ops;
+    add_header Cache-Control "private, max-age=3600" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Access-Control-Allow-Origin "${PUBLIC_ORIGIN}" always;
+    alias /srv/media/hls/$mvid/$mver/$mfile;
+  }
+  location /media/ { return 403; }
+
+  # Files handed off by the api after authorization/logging (X-Accel-Redirect).
+  location /_protected/ {
+    internal;
+    alias /srv/media/;
+    add_header X-Content-Type-Options nosniff always;
+  }
+
+  # ---------------------------------------------------------------- static
+  location /static/ {
+    alias /usr/share/nginx/static/;
+    add_header Cache-Control "public, max-age=3600" always;
+    add_header X-Content-Type-Options nosniff always;
+  }
+
+  # ---------------------------------------------------------------- admin (network-restricted)
+  location = /admin { return 301 /admin/; }
+  location /admin/ {
+    if ($admin_allowed = 0) { return 404; }
+    alias /usr/share/nginx/admin/;
+    try_files $uri $uri/ /admin/index.html;
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy same-origin always;
+    add_header X-Frame-Options DENY always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+  }
+  location /admin/assets/ {
+    if ($admin_allowed = 0) { return 404; }
+    alias /usr/share/nginx/admin/assets/;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+  }
+  location /api/admin/uploads {
+    if ($admin_allowed = 0) { return 404; }
+    client_max_body_size 0;
+    proxy_request_buffering off;
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+    proxy_pass http://api_upstream;
+  }
+  location /api/admin/ {
+    if ($admin_allowed = 0) { return 404; }
+    client_max_body_size 4m;
+    proxy_buffering off;               # SSE
+    proxy_read_timeout 1h;
+    proxy_pass http://api_upstream;
+  }
+  location = /metrics {
+    if ($admin_allowed = 0) { return 404; }
+    proxy_pass http://api_upstream;
+  }
+
+  # ---------------------------------------------------------------- public
+  location /t/v1/ {
+    limit_req zone=ingest burst=20 nodelay;
+    client_max_body_size 64k;
+    proxy_pass http://api_upstream;
+  }
+  location ~ ^/(v|e)/ {
+    limit_req zone=slug burst=30 nodelay;
+    proxy_pass http://api_upstream;
+  }
+  location / {
+    proxy_pass http://api_upstream;
+  }
+}

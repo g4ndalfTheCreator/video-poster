@@ -10,3 +10,4 @@ test-results/
 playwright-report/
 .vite/
 *.tsbuildinfo
+deploy/.sandbox-ca.crt

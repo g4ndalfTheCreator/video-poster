@@ -1,0 +1,31 @@
+{
+  "name": "@vs/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "node build.mjs",
+    "start": "node dist/main.js",
+    "seed:telemetry": "tsx src/seed.ts"
+  },
+  "dependencies": {
+    "@vs/core": "workspace:*",
+    "@vs/shared": "workspace:*",
+    "drizzle-orm": "~0.44.7",
+    "ipaddr.js": "^2.2.0",
+    "maxmind": "^4.3.29",
+    "nodemailer": "^7.0.10",
+    "pg-boss": "~10.4.2",
+    "pino": "^9.13.0",
+    "postgres": "~3.4.7",
+    "tweetnacl": "^1.0.3",
+    "uuid": "^11.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.3",
+    "esbuild": "^0.25.11",
+    "tsx": "^4.20.6"
+  }
+}

@@ -1,0 +1,112 @@
+# video-share: docker compose --env-file .env up -d
+name: video-share
+
+x-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+
+x-app: &app
+  <<: *hardening
+  image: ${IMAGE_PREFIX:-video-share}/app:${IMAGE_TAG:-latest}
+  build:
+    context: ..
+    target: app
+    args:
+      BUILD_VERSION: ${IMAGE_TAG:-dev}
+  env_file: .env
+  environment:
+    DATABASE_URL: postgres://${POSTGRES_USER:-videoshare}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-videoshare}
+    MEDIA_ROOT: /srv/media
+    GEOIP_DIR: /srv/geoip
+    TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
+  tmpfs:
+    - /tmp:size=512m,uid=10001,gid=10001
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-videoshare}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-videoshare}
+    volumes:
+      - ${PG_DIR:-pgdata}:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-videoshare} -d ${POSTGRES_DB:-videoshare}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt: [no-new-privileges:true]
+    shm_size: 256m
+
+  api:
+    <<: *app
+    command: ['node', 'apps/api/dist/main.js']
+    volumes:
+      - ${MEDIA_DIR:-media}:/srv/media
+      - ${GEOIP_DIR:-geoip}:/srv/geoip:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    <<: *app
+    command: ['node', 'apps/worker/dist/main.js']
+    volumes:
+      - ${MEDIA_DIR:-media}:/srv/media
+      - ${GEOIP_DIR:-geoip}:/srv/geoip
+    tmpfs:
+      - /tmp:size=8g,uid=10001,gid=10001
+    deploy:
+      resources:
+        limits:
+          cpus: '${WORKER_CPUS:-2}'
+          memory: ${WORKER_MEMORY:-3g}
+
+  nginx:
+    <<: *hardening
+    image: ${IMAGE_PREFIX:-video-share}/nginx:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      target: nginx
+    ports:
+      - '${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:8080'
+      - '${HTTP_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:8443'
+    environment:
+      PUBLIC_ORIGIN: ${PUBLIC_SCHEME:-http}://${PUBLIC_HOST:?set PUBLIC_HOST}
+      MEDIA_SIGNING_KEY: ${MEDIA_SIGNING_KEY:?set MEDIA_SIGNING_KEY}
+      SYSLOG_TARGET: worker:5514
+      ADMIN_ALLOW_CIDRS: ${ADMIN_ALLOW_CIDRS:-}
+      EDGE_TRUSTED_PROXIES: ${EDGE_TRUSTED_PROXIES:-}
+      NGINX_ENVSUBST_FILTER: '^(PUBLIC_ORIGIN|MEDIA_SIGNING_KEY|SYSLOG_TARGET)$'
+    volumes:
+      - ${MEDIA_DIR:-media}:/srv/media:ro
+      - ${TLS_DIR:-./tls}:/etc/nginx/tls:ro
+    tmpfs:
+      - /tmp:uid=101,gid=101
+      - /etc/nginx/conf.d:uid=101,gid=101
+      - /etc/nginx/generated:uid=101,gid=101
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+volumes:
+  pgdata:
+  media:
+  geoip:
