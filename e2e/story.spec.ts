@@ -1,5 +1,7 @@
 import { test, expect, devices, type APIRequestContext, type Page } from '@playwright/test';
-import { adminSession } from './admin.js';
+import { readFileSync } from 'node:fs';
+import { adminSession, tusUpload, waitForVideo } from './admin.js';
+import { SAMPLE_PORTRAIT } from '../test/fixtures.js';
 import { e2eState } from './global-setup.js';
 
 async function storyLink(request: APIRequestContext, label: string) {
@@ -98,11 +100,88 @@ test.describe('story mode on a phone', () => {
   });
 });
 
-test('story mode on desktop uses a phone-shaped frame', async ({ page, request }) => {
-  const link = await storyLink(request, 'e2e story desktop');
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(`/v/${link.slug}`);
-  const box = (await page.locator('.vs-story-player').boundingBox())!;
-  expect(box.height).toBeGreaterThan(box.width * 1.5);
-  expect(box.width).toBeLessThan(600);
+let portraitVideoId: string | null = null;
+async function portraitStoryLink(request: APIRequestContext) {
+  const s = await adminSession(request);
+  if (!portraitVideoId) {
+    const id = await tusUpload(request, s, readFileSync(SAMPLE_PORTRAIT), 'portrait.mp4', 'E2E portrait');
+    const v = await waitForVideo(request, id, 'ready', 120_000);
+    expect(v.status).toBe('ready');
+    portraitVideoId = id;
+  }
+  const r = await request.post(`/api/admin/videos/${portraitVideoId}/links`, {
+    headers: s.headers,
+    data: { label: 'e2e portrait story', storyMode: true },
+  });
+  return (await r.json()) as { slug: string };
+}
+
+const frame = (page: Page) =>
+  page
+    .locator('.vs-story-player')
+    .boundingBox()
+    .then((b) => b!);
+const noHorizontalScroll = (page: Page) =>
+  page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+test.describe('story mode in a desktop browser', () => {
+  test('landscape video gets a wide frame that fits the window; keyboard moves between panes', async ({
+    page,
+    request,
+  }) => {
+    const link = await storyLink(request, 'e2e story desktop');
+    for (const [w, h] of [
+      [1440, 900],
+      [1280, 720],
+      [1024, 1300],
+    ] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await page.goto(`/v/${link.slug}`);
+      const b = await frame(page);
+      expect(b.width / b.height).toBeCloseTo(16 / 9, 1);
+      expect(b.width).toBeLessThanOrEqual(w - 60);
+      expect(b.height).toBeLessThanOrEqual(h - 60);
+      expect(await noHorizontalScroll(page)).toBe(true);
+      await expect(page.locator('.vs-backdrop')).toBeAttached();
+    }
+    await page.locator('body').press('ArrowDown');
+    await expect.poll(() => docsInView(page)).toBe(true);
+    await page.locator('body').press('ArrowUp');
+    await expect
+      .poll(() => page.locator('.vs-stage').evaluate((el) => Math.abs(el.getBoundingClientRect().top) < 5))
+      .toBe(true);
+  });
+
+  test('portrait video gets a phone-shaped frame', async ({ page, request }) => {
+    test.setTimeout(180_000);
+    const link = await portraitStoryLink(request);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`/v/${link.slug}`);
+    const b = await frame(page);
+    expect(b.height).toBeGreaterThan(b.width * 1.6);
+    expect(b.width).toBeLessThanOrEqual(440);
+    expect(await noHorizontalScroll(page)).toBe(true);
+  });
+});
+
+test.describe('landscape video on a phone', () => {
+  const { defaultBrowserType: _b, ...phone } = devices['Pixel 7'];
+  test.use(phone);
+  test('is letterboxed over a blurred backdrop when upright and fills the screen sideways', async ({
+    page,
+    request,
+  }) => {
+    const link = await storyLink(request, 'e2e story phone landscape');
+    await page.goto(`/v/${link.slug}`);
+    expect(await page.locator('video').evaluate((v) => getComputedStyle(v).objectFit)).toBe('contain');
+    await expect(page.locator('.vs-backdrop')).toBeVisible();
+    const vp = page.viewportSize()!;
+    const b = await frame(page);
+    expect(Math.round(b.width)).toBe(vp.width); // full-viewport stage, video letterboxed inside
+    await page.setViewportSize({ width: vp.height, height: vp.width }); // rotate
+    const r = await frame(page);
+    expect(Math.round(r.width)).toBe(vp.height);
+    expect(Math.round(r.height)).toBe(vp.width);
+    expect(await noHorizontalScroll(page)).toBe(true);
+  });
 });

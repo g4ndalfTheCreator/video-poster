@@ -129,6 +129,28 @@ export function startStory(cfg: PageConfig, player: Player): void {
     goDocs('button');
   });
 
+  // keyboard (desktop): space/k play-pause, m mute, c captions, ↓/PageDown documents, ↑/PageUp video
+  const stagePane = $<HTMLElement>('.vs-stage');
+  document.addEventListener('keydown', (e) => {
+    const target = e.target as HTMLElement;
+    if (
+      e.ctrlKey ||
+      e.metaKey ||
+      e.altKey ||
+      /^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(target.tagName) ||
+      stage.contains(target)
+    )
+      return;
+    const k = e.key;
+    if (k === ' ' || k === 'k') player.toggle();
+    else if (k === 'm' || k === 'M') v.muted = !v.muted;
+    else if (k === 'c' || k === 'C') player.toggleCaptions();
+    else if (k === 'ArrowDown' || k === 'PageDown') goDocs('button');
+    else if (k === 'ArrowUp' || k === 'PageUp') stagePane?.scrollIntoView({ behavior: 'smooth' });
+    else return;
+    e.preventDefault();
+  });
+
   // feedback (card at the end + form on the documents pane)
   let answered = false;
   const send = (rating: string, comment?: string) =>

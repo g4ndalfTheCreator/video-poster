@@ -1,0 +1,231 @@
+/* Classic watch page + player controls. */
+.vs-watch {
+  max-width: 1040px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px;
+}
+.vs-meta h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+  margin: 1rem 0 0.5rem;
+}
+.vs-attachments h2 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.25rem;
+}
+.vs-attachments ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+.vs-attachments span {
+  color: var(--vs-muted);
+  font-size: 0.85rem;
+}
+.vs-embed-body .vs-footer {
+  display: none;
+}
+.vs-embed {
+  padding: 0;
+  max-width: none;
+}
+
+/* player */
+.vs-player {
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
+.vs-player.vs-portrait {
+  aspect-ratio: 9 / 16;
+  max-height: 82vh;
+  width: auto;
+  margin: 0 auto;
+}
+.vs-embed .vs-player {
+  border-radius: 0;
+  height: 100vh;
+  aspect-ratio: auto;
+}
+.vs-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #000;
+}
+.vs-player:fullscreen {
+  border-radius: 0;
+  max-height: none;
+}
+.vs-big {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.vs-big svg {
+  width: 44px;
+  height: 44px;
+  fill: currentColor;
+  margin-left: 4px;
+}
+.vs-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 10px 6px;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+  transition: opacity 0.2s;
+}
+.vs-playing:not(.vs-active):not(:focus-within) .vs-bar {
+  opacity: 0;
+}
+.vs-playing:not(.vs-active):not(:focus-within) {
+  cursor: none;
+}
+.vs-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.vs-left,
+.vs-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.vs-btn {
+  background: none;
+  border: 0;
+  color: #fff;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.vs-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+  display: block;
+}
+.vs-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.vs-btn.vs-on {
+  color: #9cc2ff;
+}
+.vs-vol {
+  width: 80px;
+  accent-color: #fff;
+}
+.vs-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.vs-seek {
+  position: relative;
+  height: 16px;
+  cursor: pointer;
+  touch-action: none;
+}
+.vs-seek::before,
+.vs-seek-buf,
+.vs-seek-fill {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+}
+.vs-seek::before {
+  right: 0;
+  background: rgba(255, 255, 255, 0.25);
+}
+.vs-seek-buf {
+  background: rgba(255, 255, 255, 0.45);
+}
+.vs-seek-fill {
+  background: var(--vs-brand);
+}
+.vs-seek:hover::before,
+.vs-seek:hover .vs-seek-buf,
+.vs-seek:hover .vs-seek-fill {
+  top: 5px;
+  height: 6px;
+}
+.vs-thumb {
+  display: none;
+  position: absolute;
+  bottom: 22px;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.vs-menu {
+  position: absolute;
+  right: 10px;
+  bottom: 64px;
+  background: rgba(20, 22, 26, 0.95);
+  border-radius: 8px;
+  padding: 4px;
+  display: grid;
+  min-width: 140px;
+}
+.vs-menu[hidden] {
+  display: none;
+}
+.vs-mi {
+  background: none;
+  border: 0;
+  color: #fff;
+  text-align: left;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.vs-mi[aria-checked='true']::before {
+  content: '✓ ';
+}
+.vs-mi:hover,
+.vs-mi:focus-visible {
+  background: rgba(255, 255, 255, 0.15);
+}
+@media (max-width: 520px) {
+  .vs-vol {
+    display: none;
+  }
+  .vs-watch {
+    padding: 0 0 16px;
+  }
+  .vs-player {
+    border-radius: 0;
+  }
+  .vs-meta {
+    padding: 0 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vs-bar {
+    transition: none;
+  }
+}

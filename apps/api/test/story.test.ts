@@ -150,14 +150,15 @@ describe('story mode', () => {
     expect(gdpr.feedback).toHaveLength(1);
   });
 
-  it.runIf(existsSync(path.join(DIST, 'player.js')))(
+  it.runIf(existsSync(path.join(DIST, 'story.js')))(
     'story page + player + SDK stay under 120 kB gzip',
     async () => {
       const page = await open((await link()).slug);
       const total = [
         Buffer.from(page.body),
-        readFileSync(path.join(DIST, 'player.js')),
-        readFileSync(path.join(DIST, 'player.css')),
+        readFileSync(path.join(DIST, 'story.js')),
+        readFileSync(path.join(DIST, 'base.css')),
+        readFileSync(path.join(DIST, 'story.css')),
       ]
         .map((b) => gzipSync(b).length)
         .reduce((a, b) => a + b, 0);

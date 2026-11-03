@@ -7,33 +7,38 @@ const BUDGET = 120 * 1024;
 
 await mkdir('dist', { recursive: true });
 await build({
-  entryPoints: ['src/index.ts'],
+  entryPoints: { player: 'src/index.ts', story: 'src/story-entry.ts' },
   bundle: true,
   minify: true,
   format: 'iife',
   target: ['es2020', 'safari14'],
-  outfile: 'dist/player.js',
+  outdir: 'dist',
   sourcemap: true,
   legalComments: 'none',
   logLevel: 'warning',
 });
-await build({
-  entryPoints: ['src/player.css'],
-  bundle: true,
-  minify: true,
-  outfile: 'dist/player.css',
-  logLevel: 'warning',
-});
+// base.css on every public page; watch.css (classic layout) or story.css (story layout) on watch pages
+for (const name of ['base', 'watch', 'story']) {
+  await build({
+    entryPoints: [`src/${name}.css`],
+    bundle: true,
+    minify: true,
+    outfile: `dist/${name}.css`,
+    logLevel: 'warning',
+  });
+}
 
-const js = gzipSync(await readFile('dist/player.js')).length;
-const css = gzipSync(await readFile('dist/player.css')).length;
+const gz = async (f) => gzipSync(await readFile(f)).length;
+// each page ships base.css + its layout CSS + its own bundle; the budget applies to the larger page
+const classic = (await gz('dist/player.js')) + (await gz('dist/base.css')) + (await gz('dist/watch.css'));
+const storyPage = (await gz('dist/story.js')) + (await gz('dist/base.css')) + (await gz('dist/story.css'));
 // Largest page (story layout) measured by apps/api/test/story.test.ts, which checks the real total.
 const htmlEstimate = 2.4 * 1024;
-const total = js + css + htmlEstimate;
-const report = { js, css, htmlEstimate, total, budget: BUDGET };
+const total = Math.max(classic, storyPage) + htmlEstimate;
+const report = { classic, storyPage, htmlEstimate, total, budget: BUDGET };
 await writeFile('dist/size.json', JSON.stringify(report, null, 2));
 console.warn(
-  `player.js ${(js / 1024).toFixed(1)} kB gz, player.css ${(css / 1024).toFixed(1)} kB gz, total ≈ ${(total / 1024).toFixed(1)} kB (budget ${BUDGET / 1024} kB)`,
+  `classic page assets ${(classic / 1024).toFixed(1)} kB gz, story page assets ${(storyPage / 1024).toFixed(1)} kB gz, largest page ≈ ${(total / 1024).toFixed(1)} kB (budget ${BUDGET / 1024} kB)`,
 );
 if (total > BUDGET) {
   console.error('size budget exceeded');

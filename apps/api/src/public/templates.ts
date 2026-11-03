@@ -12,6 +12,8 @@ interface Shell {
   body: string;
   version: string;
   bodyClass?: string;
+  /** Layout stylesheet in addition to base.css. */
+  css?: 'watch' | 'story';
   /** Inline brand colour (needs the CSP nonce); off for the generic 404 so its body is byte-identical. */
   brand?: boolean;
 }
@@ -33,7 +35,8 @@ export function page(s: Shell): string {
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>${esc(s.title)}</title>
 <link rel="icon" href="data:,">
-<link rel="stylesheet" href="/static/player.css?v=${esc(s.version)}">
+<link rel="stylesheet" href="/static/base.css?v=${esc(s.version)}">
+${s.css ? `<link rel="stylesheet" href="/static/${s.css}.css?v=${esc(s.version)}">` : ''}
 ${s.brand === false ? '' : brandStyle(s.nonce, s.settings)}
 ${s.head ?? ''}
 </head>
@@ -200,12 +203,13 @@ ${scripts(v)}`;
     head: `<meta name="description" content="${esc(v.description.slice(0, 300))}">\n${og}`,
     body,
     bodyClass: v.story ? 'vs-story-body' : v.embed ? 'vs-embed-body' : '',
+    css: v.story ? 'story' : 'watch',
   });
 }
 
 function scripts(v: WatchView): string {
   return v.config
-    ? `<script type="application/json" id="vs-config">${jsonForHtml(v.config)}</script>\n<script src="/static/player.js?v=${esc(v.version)}" defer></script>`
+    ? `<script type="application/json" id="vs-config">${jsonForHtml(v.config)}</script>\n<script src="/static/${v.story ? 'story' : 'player'}.js?v=${esc(v.version)}" defer></script>`
     : '';
 }
 
@@ -241,9 +245,14 @@ function storyBody(v: WatchView, fmtSize: (n: number) => string): string {
         ]
       : []),
   ].join('\n');
-  return `<main class="vs-story" id="vs-story">
+  // Frame follows the video's own shape: phone frame for portrait, cinema frame for landscape.
+  const ratio = v.width && v.height ? Math.min(3, Math.max(0.3, v.width / v.height)) : 9 / 16;
+  const shape = ratio > 1.05 ? 'vs-landscape' : ratio < 0.95 ? 'vs-portrait' : 'vs-square';
+  return `<style nonce="${esc(v.nonce)}">.vs-story-player{--vs-r:${ratio.toFixed(4)}}</style>
+<main class="vs-story" id="vs-story">
 <section class="vs-pane vs-stage" aria-label="${esc(v.title)}">
-<div class="vs-player vs-story-player${v.width && v.height && v.width > v.height ? ' vs-landscape' : ''}">
+${v.posterUrl ? `<img class="vs-backdrop" src="${esc(v.posterUrl)}" alt="" aria-hidden="true">` : ''}
+<div class="vs-player vs-story-player ${shape}">
 <video id="vs-video" class="vs-video" playsinline muted preload="metadata" ${v.posterUrl ? `poster="${esc(v.posterUrl)}"` : ''} ${v.masterUrl ? `src="${esc(v.masterUrl)}"` : ''} controls>
 ${v.captions.map((c, i) => `<track kind="subtitles" srclang="${esc(c.lang)}" label="${esc(c.label)}" src="${esc(c.src)}"${i === 0 ? ' default' : ''}>`).join('\n')}
 </video>

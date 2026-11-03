@@ -9,6 +9,9 @@ forward-only.
   tap/hold to pause, swipe up to the CV and cover letter page), a one-tap 👍/🤷/👎 feedback card after the
   video (repeated on the documents page), comment notifications, feedback and "reached documents"
   statistics in the admin. Enabled per video, overridable per link. Migration `0006_story_mode.sql`.
+- Story mode on desktop and for horizontal video: aspect-aware frame over a blurred poster backdrop,
+  letterboxed landscape video on upright phones (full screen when rotated), keyboard navigation, and
+  separate classic/story player bundles and stylesheets.
 
 ## 0.1.0 – 2026-11-03
 
