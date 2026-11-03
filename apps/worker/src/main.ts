@@ -18,6 +18,7 @@ import { notifyOpen, notifySummary, notifyTest } from './telemetry/notify.js';
 import { closeIdleSessions } from './telemetry/sessions.js';
 import { startSyslogReceiver } from './telemetry/syslog.js';
 import { updateGeoIp } from './jobs/geoip.js';
+import { runRollups } from './telemetry/rollups.js';
 
 async function main() {
   let config;
@@ -87,6 +88,14 @@ async function main() {
     60,
   );
   await boss.schedule(QUEUES.torList, '7 * * * *');
+  await work<{ videoId?: string }>(QUEUES.rollups, (d) => runRollups(sql, { videoId: d.videoId }), 10);
+  await boss.schedule(QUEUES.rollups, '*/5 * * * *');
+  await work<{ videoId?: string; full?: boolean }>(
+    QUEUES.rollupsNightly,
+    (d) => runRollups(sql, { full: true, videoId: d.videoId }),
+    30,
+  );
+  await boss.schedule(QUEUES.rollupsNightly, '31 1 * * *');
   const syslog = startSyslogReceiver(sql, config.SYSLOG_PORT, log);
   await work(QUEUES.geoipUpdate, () => updateGeoIp(config, log), 60);
   await boss.schedule(QUEUES.geoipUpdate, '23 4 3 * *');

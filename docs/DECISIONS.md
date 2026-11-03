@@ -174,3 +174,18 @@ admin System page).
 atomically so it goes out once; it waits up to 10 s for IP enrichment. Channels: ntfy, email (SMTP via
 nodemailer), webhook (HMAC-signed JSON). Optional end-of-session summary via the setting
 `notifications.sessionSummary`. Every delivery attempt is logged in `notifications_log`.
+
+## D27 – Rollups and retention
+
+`daily_rollups` rows are (date in the configured UI time zone, video, link); the job recomputes today
+and yesterday every 5 minutes and yesterday again nightly; `rebuildAllRollups` backfills everything
+(seed, GDPR deletions). Unique visitors for a date range are counted from `view_sessions`
+(visitor id, falling back to the daily `visitor_hash`) because daily uniques cannot be summed.
+`retention_buckets` is all-time per link (the spec's table has no date), recomputed for links with
+session activity since the last run; date filters therefore do not apply to the retention curve.
+
+## D28 – Headless browsers are bots
+
+Sessions whose page reports `navigator.webdriver = true` (automation, including Playwright) or a 0×0
+screen are flagged `is_bot` and excluded from dashboards (they are still stored and visible with
+"hide bots" off). End-to-end tests therefore assert on session details, not on dashboard counts.
