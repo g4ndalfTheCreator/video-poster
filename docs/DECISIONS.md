@@ -127,3 +127,50 @@ token prefix after a playback-token refresh.
 
 A correct link password sets a 12-hour `HttpOnly; SameSite=Lax` cookie containing an HMAC over the link
 id, expiry and the tail of the password hash, so changing the password invalidates existing unlocks.
+
+## D21 – Server-side watch estimate
+
+Without client JS the watched ranges are estimated from the nginx media log (one JSON line per request,
+shipped over UDP syslog to the worker). Segment k is requested when the playhead is roughly at
+`4k − 10 s` (hls.js `maxBufferLength = 10`), so a run of consecutive segments a…b is counted as watched
+from `4a` to the middle of `[4b − 10, 4(b+1) − 10)`, capped by wall-clock time until the next run (seek)
+or session close; a run that reaches the last segment counts to the end. The tail is stored as
+"fetched, not certainly watched". The client estimate replaces it as `source = client` when JS telemetry
+exists; both are kept. Safari's native player buffers differently and is less accurate (as the spec
+notes). JA4 is not collected: stock nginx has no JA4 module (setting kept, default off).
+
+## D22 – Raw vs. merged played ranges
+
+The SDK sends raw played ranges per heartbeat (not `video.played`, which is already a union), so the
+server can count rewatches (`raw_ranges`, capped at 2000 per session) and compute unique time
+(`played_ranges`, union) separately.
+
+## D23 – Browser profile storage
+
+The full signal set is stored once per distinct profile in `browser_fingerprints` (retention 180 days);
+the `fingerprint` event keeps only a reference. `fp_hash` = SHA-256 of the canonical stable subset;
+`stable_hash` additionally drops signals that privacy browsers randomise, and is used for randomised
+profiles. Client-side hashes use cyrb53 because SubtleCrypto is unavailable on plain-HTTP LAN pages.
+
+## D24 – IP owner lookup
+
+Order: LAN check (no external calls) → local mmdb (country/city/ASN) → PTR with forward confirmation
+(2 s timeout, `DNS_RESOLVER`) → RDAP via the IANA bootstrap (1 request/s, 256 kB limit, 5 s timeout,
+cached per allocation for 30 days) → classification heuristics (`apps/worker/src/ipintel/classify.ts`,
+ASN lists for hosting/security proxies/VPNs, PTR patterns) → admin overrides. The Tor exit list is
+refreshed hourly only while external lookups are enabled. The real-network test runs in CI only
+(`RUN_NETWORK_TESTS=1`); this development environment has no outbound DNS/RDAP.
+
+## D25 – GeoIP databases
+
+The worker downloads DB-IP Lite City + ASN (CC BY 4.0, no licence key) monthly into `GEOIP_DIR`
+(`GEOIP_AUTO_UPDATE=dbip`, set `off` to manage files manually, e.g. MaxMind GeoLite2). This is an
+outbound request that carries no viewer data. Attribution: "IP geolocation by DB-IP" (shown in the
+admin System page).
+
+## D26 – Notifications
+
+"Link opened" is sent for the first human `play` on a link (every open if `notify_every_open`), claimed
+atomically so it goes out once; it waits up to 10 s for IP enrichment. Channels: ntfy, email (SMTP via
+nodemailer), webhook (HMAC-signed JSON). Optional end-of-session summary via the setting
+`notifications.sessionSummary`. Every delivery attempt is logged in `notifications_log`.

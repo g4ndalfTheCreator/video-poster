@@ -33,6 +33,8 @@ const envSchema = z.object({
   /** When true, file downloads are handed to nginx with X-Accel-Redirect (/_protected/). */
   MEDIA_ACCEL: bool,
   GEOIP_DIR: z.string().default('/srv/geoip'),
+  /** Monthly GeoIP database download: 'dbip' (DB-IP Lite, CC BY 4.0, no key) or 'off'. */
+  GEOIP_AUTO_UPDATE: z.enum(['dbip', 'off']).default('dbip'),
   MEDIA_SIGNING_KEY: key('MEDIA_SIGNING_KEY'),
   INGEST_SIGNING_KEY: key('INGEST_SIGNING_KEY'),
   APP_ENCRYPTION_KEY: z

@@ -129,7 +129,12 @@
     "newPassword": "Uusi salasana",
     "ipOverrides": "Organisaatiomerkinnät (IP/CIDR)",
     "orgLabel": "Organisaatio",
-    "note": "Muistiinpano"
+    "note": "Muistiinpano",
+    "sessionSummary": "Lähetä yhteenveto istunnon päätyttyä (ilmoitetuille istunnoille)",
+    "lastDelivery": "Viimeisin toimitus",
+    "failed": "Epäonnistui",
+    "notifications": "Ilmoitukset",
+    "overrideHint": "Merkintä koskee myös tulevia istuntoja ja voittaa automaattisen arvauksen."
   },
   "audit": {
     "title": "Audit-loki",

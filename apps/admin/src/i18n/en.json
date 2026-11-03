@@ -129,7 +129,12 @@
     "newPassword": "New password",
     "ipOverrides": "Organisation labels (IP/CIDR)",
     "orgLabel": "Organisation",
-    "note": "Note"
+    "note": "Note",
+    "sessionSummary": "Send a summary when the session ends (for notified sessions)",
+    "lastDelivery": "Last delivery",
+    "failed": "Failed",
+    "notifications": "Notifications",
+    "overrideHint": "Applies to future sessions too and overrides the automatic guess."
   },
   "audit": {
     "title": "Audit log",

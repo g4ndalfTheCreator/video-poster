@@ -12,6 +12,7 @@ import { HttpError } from './lib/errors.js';
 import { healthRoutes } from './routes/health.js';
 import { adminApi } from './routes/admin/index.js';
 import { publicRoutes } from './routes/public/watch.js';
+import { ingestRoutes } from './routes/public/ingest.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -76,5 +77,6 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   await healthRoutes(app, ctx);
   await app.register(async (scope) => adminApi(scope, ctx), { prefix: '/api/admin' });
   await app.register(async (scope) => publicRoutes(scope, ctx));
+  await app.register(async (scope) => ingestRoutes(scope, ctx));
   return app;
 }

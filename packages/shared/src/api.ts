@@ -139,6 +139,7 @@ export const settingsSchema = z.object({
     })
     .default({ locale: 'fi', timezone: 'Europe/Helsinki' }),
   blocklist: z.array(z.string().max(64)).max(1000).default([]),
+  notifications: z.object({ sessionSummary: z.boolean().default(false) }).default({ sessionSummary: false }),
 });
 export type Settings = z.infer<typeof settingsSchema>;
 export const settingsPatchSchema = settingsSchema.partial();
