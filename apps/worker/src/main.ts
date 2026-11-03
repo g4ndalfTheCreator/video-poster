@@ -20,6 +20,7 @@ import { startSyslogReceiver } from './telemetry/syslog.js';
 import { updateGeoIp } from './jobs/geoip.js';
 import { runRollups } from './telemetry/rollups.js';
 import { runRetention } from './jobs/retention.js';
+import { backupDatabase } from './jobs/backup.js';
 
 async function main() {
   let config;
@@ -121,6 +122,9 @@ async function main() {
   await boss.schedule(QUEUES.purgeTrash, '43 3 * * *');
   await work(QUEUES.retention, () => runRetention(sql, log), 60);
   await boss.schedule(QUEUES.retention, '13 3 * * *');
+  await work(QUEUES.backup, () => backupDatabase(config, log), 60);
+  if (config.BACKUP_CRON !== 'off') await boss.schedule(QUEUES.backup, config.BACKUP_CRON);
+  else await boss.unschedule(QUEUES.backup).catch(() => undefined);
 
   log.info('worker started');
   const shutdown = async () => {

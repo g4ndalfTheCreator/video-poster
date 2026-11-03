@@ -13,7 +13,7 @@ apps/admin/       React 19 SPA served by nginx at /admin
 packages/shared/  zod schemas, event types, constants, pure metric helpers (browser + node)
 packages/core/    server-only code shared by api + worker: config, db, migrations, crypto, ip, queues
 packages/player/  hls.js player + telemetry SDK + browser profile (esbuild bundle → /static/player.js)
-deploy/           docker-compose.yml, nginx config, .env.example, RESTORE.md
+deploy/           docker-compose.yml, nginx config, .env.example, RESTORE.md (see also docs/OPERATIONS.md)
 e2e/              Playwright tests against the running compose stack
 test/             Vitest global setup (Testcontainers Postgres) and helpers
 ```

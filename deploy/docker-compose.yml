@@ -21,6 +21,7 @@ x-app: &app
     MEDIA_ROOT: /srv/media
     MEDIA_ACCEL: 'true'
     GEOIP_DIR: /srv/geoip
+    BACKUP_DIR: /srv/backups
     TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
   tmpfs:
     - /tmp:size=512m,uid=10001,gid=10001
@@ -70,6 +71,7 @@ services:
     volumes:
       - ${MEDIA_DIR:-media}:/srv/media
       - ${GEOIP_DIR:-geoip}:/srv/geoip
+      - ${BACKUP_DIR:-backups}:/srv/backups
     tmpfs:
       - /tmp:size=8g,uid=10001,gid=10001
     deploy:
@@ -111,3 +113,4 @@ volumes:
   pgdata:
   media:
   geoip:
+  backups:

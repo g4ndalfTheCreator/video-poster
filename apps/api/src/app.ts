@@ -13,6 +13,7 @@ import { healthRoutes } from './routes/health.js';
 import { adminApi } from './routes/admin/index.js';
 import { publicRoutes } from './routes/public/watch.js';
 import { ingestRoutes } from './routes/public/ingest.js';
+import { metricsRoutes } from './routes/metrics.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -93,6 +94,7 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
     reply.code(404).send({ error: { code: 'not_found', message: 'not found' } }),
   );
 
+  await metricsRoutes(app, ctx);
   await healthRoutes(app, ctx);
   await app.register(async (scope) => adminApi(scope, ctx), { prefix: '/api/admin' });
   await app.register(async (scope) => publicRoutes(scope, ctx));
