@@ -20,6 +20,7 @@ export const adminUsers = pgTable('admin_users', {
   passwordHash: text('password_hash').notNull(),
   totpSecret: text('totp_secret'),
   totpPendingSecret: text('totp_pending_secret'),
+  totpLastStep: bigint('totp_last_step', { mode: 'number' }),
   role: text('role').$type<'owner' | 'editor' | 'viewer'>().notNull(),
   failedLogins: integer('failed_logins').notNull().default(0),
   lockedUntil: ts('locked_until'),

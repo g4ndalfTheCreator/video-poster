@@ -4,9 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true});require('fs').writeFileSync('dist/index.html','<!doctype html><title>admin</title>')\""
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@vs/shared": "workspace:*"
+    "@tanstack/react-query": "^5.90.0",
+    "@tanstack/react-router": "^1.133.0",
+    "@vs/shared": "workspace:*",
+    "clsx": "^2.1.1",
+    "i18next": "^25.6.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-i18next": "^16.0.0",
+    "recharts": "^3.2.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tailwindcss": "^4.1.14",
+    "vite": "^7.1.9"
   }
 }

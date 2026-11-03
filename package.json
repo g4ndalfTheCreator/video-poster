@@ -21,7 +21,7 @@
     "dev:admin": "pnpm --filter @vs/admin dev",
     "db:migrate": "pnpm --filter @vs/core migrate",
     "seed:telemetry": "pnpm --filter @vs/worker seed:telemetry",
-    "sbom": "pnpm dlx @cyclonedx/cyclonedx-npm --output-file sbom.json"
+    "sbom": "pnpm dlx @cyclonedx/cdxgen@11 -t pnpm -r -o sbom.json ."
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

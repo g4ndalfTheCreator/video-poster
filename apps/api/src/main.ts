@@ -8,6 +8,7 @@ import {
   ensureQueues,
 } from '@vs/core';
 import { buildApp } from './app.js';
+import { ensureBootstrapToken } from './lib/bootstrap.js';
 
 async function main() {
   let config;
@@ -24,6 +25,14 @@ async function main() {
   const database = createDatabase(config.DATABASE_URL);
   const applied = await migrate(database.sql);
   if (applied.length) log.info({ applied }, 'migrations applied');
+
+  const bootstrap = await ensureBootstrapToken(database.sql);
+  if (bootstrap) {
+    // Printed to the console on purpose: the operator uses it once to create the owner account.
+    console.warn(
+      `\n=== video-share bootstrap ===\nNo admin users exist. Open ${config.publicOrigin}/admin/ and use this one-time token:\n\n  ${bootstrap}\n`,
+    );
+  }
 
   const boss = createBoss(config.DATABASE_URL);
   boss.on('error', (err) => log.error({ err }, 'pg-boss error'));
