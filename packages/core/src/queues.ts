@@ -33,15 +33,13 @@ export interface DownloadJob {
 }
 export interface IpEnrichJob {
   ip: string;
+  sessionId?: string;
 }
 export interface MatchVisitorJob {
   sessionId: string;
   fingerprintId: string;
 }
-export interface NotifyJob {
-  sessionId: string;
-  kind: 'open' | 'summary';
-}
+export type NotifyJob = { kind: 'open' | 'summary'; sessionId: string } | { kind: 'test'; channelId: string };
 
 export function createBoss(databaseUrl: string): PgBoss {
   return new PgBoss({ connectionString: databaseUrl, schema: 'pgboss', max: 4 });

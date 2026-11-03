@@ -6,6 +6,9 @@ import { userRoutes } from './users.js';
 import { settingsRoutes } from './settings.js';
 import { uploadRoutes } from './uploads.js';
 import { videoRoutes } from './videos.js';
+import { linkRoutes } from './links.js';
+import { channelRoutes } from './channels.js';
+import { analyticsRoutes } from './analytics.js';
 import multipart from '@fastify/multipart';
 import { PgNotifications } from '../../lib/notify.js';
 
@@ -20,4 +23,7 @@ export async function adminApi(app: FastifyInstance, ctx: AppContext) {
   app.addHook('onClose', () => notifications.close());
   await uploadRoutes(app, ctx);
   await videoRoutes(app, ctx, notifications);
+  await linkRoutes(app, ctx);
+  await channelRoutes(app, ctx);
+  await analyticsRoutes(app, ctx);
 }
