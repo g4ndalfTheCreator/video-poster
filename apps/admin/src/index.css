@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-muted-fg: var(--muted-fg);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-danger: var(--danger);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
+  --bg: #f7f7f8;
+  --fg: #111827;
+  --muted: #eef0f3;
+  --muted-fg: #5b6472;
+  --card: #ffffff;
+  --border: #e2e5ea;
+  --primary: #2563eb;
+  --primary-fg: #ffffff;
+  --danger: #c0262d;
+  --ok: #15803d;
+  --warn: #b45309;
+  color-scheme: light;
+}
+.dark {
+  --bg: #0d1117;
+  --fg: #e6e8eb;
+  --muted: #1b222c;
+  --muted-fg: #9aa4b2;
+  --card: #141a22;
+  --border: #29313d;
+  --primary: #5b8def;
+  --primary-fg: #0b1020;
+  --danger: #f05d63;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

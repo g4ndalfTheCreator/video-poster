@@ -3,10 +3,17 @@
   "compilerOptions": {
     "outDir": "dist/types",
     "rootDir": "src",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "emitDeclarationOnly": true,
-    "jsx": "react-jsx"
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["vite/client"]
   },
-  "include": ["src"],
-  "references": [{ "path": "../../packages/shared" }]
+  "include": ["src", "src/**/*.json"],
+  "references": [
+    {
+      "path": "../../packages/shared"
+    }
+  ]
 }

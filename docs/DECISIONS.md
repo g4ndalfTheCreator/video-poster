@@ -58,3 +58,22 @@ nginx `real_ip`, and `TRUSTED_PROXIES` (the nginx container network) is used by 
 
 The production image is `node:22-trixie-slim` with Debian's FFmpeg 7.1. Nothing in the code depends on
 FFmpeg 7 specifically; FFmpeg ≥ 6.1 works (used in CI on Ubuntu 24.04).
+
+## D10 – Authorization before validation; viewer gets 403
+
+Admin guards run in Fastify's `preValidation` phase so that a `viewer` (or an API token) receives 403
+for every mutating route regardless of the request body, and nothing about payload schemas leaks to
+unauthorised callers.
+
+## D11 – TOTP enrollment flow and operator CLI
+
+Owners/editors without TOTP get a session in an `enroll_required` stage that can only call the
+enrollment endpoints. A small operator CLI in the api image (`node apps/api/dist/cli.js`) issues a new
+bootstrap token and can create users or reset a password/TOTP (account recovery without database
+access). Used codes are remembered per user (`totp_last_step`) to prevent replay.
+
+## D12 – DB-backed rate limits
+
+Login, TOTP and link-password attempt limits are fixed-window counters in a `rate_limits` table, so they
+survive restarts. Request-rate limits for public routes (ingest 30 r/min, slug lookups 60 r/min) are
+enforced by nginx `limit_req`.

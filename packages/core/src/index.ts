@@ -9,3 +9,4 @@ export * from './settings.js';
 export * from './audit.js';
 export * as schema from './schema.js';
 export * from './queues.js';
+export * from './ratelimit.js';

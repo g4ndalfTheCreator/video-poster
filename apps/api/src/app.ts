@@ -10,10 +10,14 @@ import { resolveClientIp } from '@vs/core';
 import type { AppContext } from './context.js';
 import { HttpError } from './lib/errors.js';
 import { healthRoutes } from './routes/health.js';
+import { adminApi } from './routes/admin/index.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
     clientIp: string | null;
+  }
+  interface FastifyInstance {
+    routeList: { method: string; url: string; config: Record<string, unknown> }[];
   }
 }
 
@@ -27,6 +31,11 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
+  app.decorate('routeList', []);
+  app.addHook('onRoute', (r) => {
+    for (const m of [r.method].flat())
+      app.routeList.push({ method: m, url: r.url, config: (r.config ?? {}) as Record<string, unknown> });
+  });
   app.decorateRequest('clientIp', null);
   app.addHook('onRequest', async (req) => {
     req.clientIp = resolveClientIp(
@@ -64,5 +73,6 @@ export async function buildApp(ctx: AppContext): Promise<FastifyInstance> {
   );
 
   await healthRoutes(app, ctx);
+  await app.register(async (scope) => adminApi(scope, ctx), { prefix: '/api/admin' });
   return app;
 }
