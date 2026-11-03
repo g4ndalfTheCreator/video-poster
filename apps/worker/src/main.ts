@@ -19,6 +19,7 @@ import { closeIdleSessions } from './telemetry/sessions.js';
 import { startSyslogReceiver } from './telemetry/syslog.js';
 import { updateGeoIp } from './jobs/geoip.js';
 import { runRollups } from './telemetry/rollups.js';
+import { runRetention } from './jobs/retention.js';
 
 async function main() {
   let config;
@@ -118,6 +119,8 @@ async function main() {
     60,
   );
   await boss.schedule(QUEUES.purgeTrash, '43 3 * * *');
+  await work(QUEUES.retention, () => runRetention(sql, log), 60);
+  await boss.schedule(QUEUES.retention, '13 3 * * *');
 
   log.info('worker started');
   const shutdown = async () => {

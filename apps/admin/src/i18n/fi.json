@@ -400,5 +400,19 @@
     "backup": "Viimeisin varmuuskopio",
     "none": "ei tietoa",
     "attribution": "IP-sijainti: DB-IP (CC BY 4.0)"
+  },
+  "gdpr": {
+    "tab": "Tietosuoja (GDPR)",
+    "intro": "Rekisteröidyn pyynnöt: hae istunnot IP-osoitteen, IP-prefiksin, linkin tai katsojan perusteella, vie ne JSON-muodossa tai poista ne pysyvästi. Kaikki toimenpiteet kirjataan audit-lokiin.",
+    "ip": "IP-osoite tai prefiksi",
+    "linkId": "Linkin tunniste",
+    "visitorId": "Katsojan tunniste",
+    "search": "Hae",
+    "found": "{{n}} istuntoa",
+    "export": "Vie JSON",
+    "delete": "Poista pysyvästi",
+    "confirm": "Poistetaanko {{n}} istuntoa ja niihin liittyvät tapahtumat, segmenttilokit ja selainprofiilit pysyvästi? Toimintoa ei voi perua.",
+    "deleted": "Poistettu {{n}} istuntoa",
+    "deleteSession": "Poista istunto pysyvästi"
   }
 }

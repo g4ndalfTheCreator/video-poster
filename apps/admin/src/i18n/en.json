@@ -400,5 +400,19 @@
     "backup": "Last backup",
     "none": "unknown",
     "attribution": "IP geolocation by DB-IP (CC BY 4.0)"
+  },
+  "gdpr": {
+    "tab": "Privacy (GDPR)",
+    "intro": "Data-subject requests: find sessions by IP address, IP prefix, link or viewer, export them as JSON or delete them permanently. Every action is written to the audit log.",
+    "ip": "IP address or prefix",
+    "linkId": "Link id",
+    "visitorId": "Viewer id",
+    "search": "Search",
+    "found": "{{n}} sessions",
+    "export": "Export JSON",
+    "delete": "Delete permanently",
+    "confirm": "Permanently delete {{n}} sessions and their events, segment logs and browser profiles? This cannot be undone.",
+    "deleted": "Deleted {{n}} sessions",
+    "deleteSession": "Delete session permanently"
   }
 }

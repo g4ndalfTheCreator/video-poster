@@ -92,3 +92,23 @@ test('media URLs need a valid, unexpired token', async ({ request }) => {
     200,
   );
 });
+
+test('security headers on the watch page, 404 and admin SPA', async ({ request }) => {
+  const link = await createLink(request, { label: 'e2e headers' });
+  for (const url of [`/v/${link.slug}`, '/v/doesnotexist1', '/admin/', '/privacy']) {
+    const h = (await request.get(url)).headers();
+    for (const k of [
+      'content-security-policy',
+      'x-content-type-options',
+      'referrer-policy',
+      'permissions-policy',
+    ])
+      expect(h[k], `${url} ${k}`).toBeTruthy();
+    expect(
+      h['x-frame-options'] ??
+        (h['content-security-policy']!.includes("frame-ancestors 'none'") ? 'csp' : undefined),
+      url,
+    ).toBeTruthy();
+    expect(h['server'] ?? '').not.toMatch(/\d/); // no version disclosure
+  }
+});

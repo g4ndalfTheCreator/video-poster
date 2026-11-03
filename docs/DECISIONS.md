@@ -189,3 +189,26 @@ session activity since the last run; date filters therefore do not apply to the 
 Sessions whose page reports `navigator.webdriver = true` (automation, including Playwright) or a 0×0
 screen are flagged `is_bot` and excluded from dashboards (they are still stored and visible with
 "hide bots" off). End-to-end tests therefore assert on session details, not on dashboard counts.
+
+## D29 – Retention mechanics
+
+The nightly retention job drops whole monthly `events` partitions once their upper bound is older than
+`eventsDays` (and deletes rows in the partially expired partition), clears `browser_fingerprints.signals`
+after `fingerprintSignalsDays` (hash kept), and moves `segment_fetches` partitions older than
+`archiveAfterMonths` into the `archive` schema with `DETACH PARTITION … SET SCHEMA archive` (still
+queryable, foreign key kept so GDPR deletions cascade). With the default `serverData = forever` nothing
+server-side is deleted; a number of days enables deletion of sessions, previews and rollups past it.
+
+## D30 – GDPR tooling
+
+Owner-only endpoints `/api/admin/gdpr/{search,export,delete}` filter by link, viewer, IP or IP prefix and
+time. Deletion is a hard delete of events, segment fetches, sessions and summaries, plus browser
+profiles and viewers that no longer have sessions; rollups of affected videos are rebuilt. All requests
+are audited. Blocklisted addresses (settings) never create sessions (the page still works).
+
+## D31 – Security headers
+
+HTML pages: strict CSP (`default-src 'self'`, nonce only for one inline style, no inline scripts),
+`frame-ancestors 'none'` (or `*` for embeds), `X-Frame-Options`, `nosniff`, `Referrer-Policy`,
+`Permissions-Policy`, COOP/CORP, HSTS when served over HTTPS. Every other api response gets a baseline
+(`default-src 'none'` CSP, nosniff, DENY). A securityheaders-style grading test requires grade A.
