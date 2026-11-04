@@ -89,13 +89,17 @@ services:
     ports:
       - '${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:8080'
       - '${HTTP_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:8443'
+      # private admin listener: keep on loopback (SSH tunnel) or a VPN address, never 0.0.0.0
+      - '${ADMIN_BIND:-127.0.0.1}:${ADMIN_PORT:-8081}:8081'
     environment:
       PUBLIC_ORIGIN: ${PUBLIC_SCHEME:-http}://${PUBLIC_HOST:?set PUBLIC_HOST}
       MEDIA_SIGNING_KEY: ${MEDIA_SIGNING_KEY:?set MEDIA_SIGNING_KEY}
       SYSLOG_TARGET: worker:5514
       ADMIN_ALLOW_CIDRS: ${ADMIN_ALLOW_CIDRS:-}
+      ADMIN_LISTENER: ${ADMIN_LISTENER:-public}
+      ADMIN_LOGIN_RATE: ${ADMIN_LOGIN_RATE:-10r/m}
       EDGE_TRUSTED_PROXIES: ${EDGE_TRUSTED_PROXIES:-}
-      NGINX_ENVSUBST_FILTER: '^(PUBLIC_ORIGIN|MEDIA_SIGNING_KEY|SYSLOG_TARGET)$'
+      NGINX_ENVSUBST_FILTER: '^(PUBLIC_ORIGIN|MEDIA_SIGNING_KEY|SYSLOG_TARGET|ADMIN_LOGIN_RATE)$'
     volumes:
       - ${MEDIA_DIR:-media}:/srv/media:ro
       - ${TLS_DIR:-./tls}:/etc/nginx/tls:ro

@@ -1,4 +1,5 @@
 import {
+  adminSecurityWarnings,
   loadConfig,
   ConfigError,
   createDatabase,
@@ -49,6 +50,7 @@ async function main() {
     },
   };
   const app = await buildApp({ config, database, jobs, log });
+  for (const w of adminSecurityWarnings(config)) log.warn({ warning: w }, 'admin hardening: see docs/VPS.md');
   await app.listen({ port: config.PORT, host: config.HOST });
 
   const shutdown = async () => {

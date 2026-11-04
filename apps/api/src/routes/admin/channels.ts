@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { audit, decryptJson, encryptJson, newId, parseCidr, QUEUES, type NotifyJob } from '@vs/core';
 import { channelCreateSchema, idParams, ipOverrideSchema } from '@vs/shared';
 import type { AppContext } from '../../context.js';
-import { requireRole } from '../../plugins/auth.js';
+import { requireRecentAuth, requireRole } from '../../plugins/auth.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 
 const SECRET_KEYS = new Set(['token', 'secret']);
@@ -16,6 +16,8 @@ export async function channelRoutes(fastify: FastifyInstance, ctx: AppContext) {
   const sql = ctx.database.sql;
   const key = ctx.config.APP_ENCRYPTION_KEY;
   const owner = { preValidation: requireRole('owner') };
+  /** Owner + a recent password (+ TOTP) check, see requireRecentAuth. */
+  const sensitive = { preValidation: [requireRole('owner'), requireRecentAuth(ctx)] };
 
   app.get('/notification-channels', owner, async () => {
     const rows = await sql<
@@ -34,7 +36,7 @@ export async function channelRoutes(fastify: FastifyInstance, ctx: AppContext) {
     }));
   });
 
-  app.post('/notification-channels', { ...owner, schema: { body: channelCreateSchema } }, async (req) => {
+  app.post('/notification-channels', { ...sensitive, schema: { body: channelCreateSchema } }, async (req) => {
     const id = newId();
     await sql`INSERT INTO notification_channels (id, kind, config, is_active) VALUES (${id}, ${req.body.kind}, ${encryptJson(key, req.body.config)}, ${req.body.isActive})`;
     await audit(sql, {
@@ -50,7 +52,7 @@ export async function channelRoutes(fastify: FastifyInstance, ctx: AppContext) {
 
   app.patch(
     '/notification-channels/:id',
-    { ...owner, schema: { params: idParams, body: z.object({ isActive: z.boolean() }) } },
+    { ...sensitive, schema: { params: idParams, body: z.object({ isActive: z.boolean() }) } },
     async (req) => {
       const r =
         await sql`UPDATE notification_channels SET is_active = ${req.body.isActive} WHERE id = ${req.params.id} RETURNING id`;
@@ -67,7 +69,7 @@ export async function channelRoutes(fastify: FastifyInstance, ctx: AppContext) {
     },
   );
 
-  app.delete('/notification-channels/:id', { ...owner, schema: { params: idParams } }, async (req) => {
+  app.delete('/notification-channels/:id', { ...sensitive, schema: { params: idParams } }, async (req) => {
     const r = await sql`DELETE FROM notification_channels WHERE id = ${req.params.id} RETURNING id`;
     if (!r.length) throw notFound('channel');
     await audit(sql, {

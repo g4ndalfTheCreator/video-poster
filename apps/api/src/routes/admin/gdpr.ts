@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { audit, parseCidr, QUEUES, type Sql } from '@vs/core';
 import { idParams } from '@vs/shared';
 import type { AppContext } from '../../context.js';
-import { requireRole } from '../../plugins/auth.js';
+import { requireRecentAuth, requireRole } from '../../plugins/auth.js';
 import { badRequest, notFound } from '../../lib/errors.js';
 
 /** Data-subject request filter: by link, time, IP, IP prefix or viewer (at least one). */
@@ -76,6 +76,7 @@ export async function gdprRoutes(fastify: FastifyInstance, ctx: AppContext) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   const sql = ctx.database.sql;
   const owner = { preValidation: requireRole('owner') };
+  const sensitive = { preValidation: [requireRole('owner'), requireRecentAuth(ctx)] };
 
   app.get('/gdpr/search', { ...owner, schema: { querystring: subjectFilter } }, async (req) => {
     const rows = await sql`
@@ -92,7 +93,7 @@ export async function gdprRoutes(fastify: FastifyInstance, ctx: AppContext) {
     return { sessions: rows, count: rows.length };
   });
 
-  app.get('/gdpr/export', { ...owner, schema: { querystring: subjectFilter } }, async (req, reply) => {
+  app.get('/gdpr/export', { ...sensitive, schema: { querystring: subjectFilter } }, async (req, reply) => {
     const ids = (
       await sql<{ id: string }[]>`SELECT s.id FROM view_sessions s ${whereFor(sql, req.query)} LIMIT 5000`
     ).map((r) => r.id);
@@ -135,7 +136,7 @@ export async function gdprRoutes(fastify: FastifyInstance, ctx: AppContext) {
 
   app.post(
     '/gdpr/delete',
-    { ...owner, schema: { body: z.object({ filter: subjectFilter, confirm: z.literal(true) }) } },
+    { ...sensitive, schema: { body: z.object({ filter: subjectFilter, confirm: z.literal(true) }) } },
     async (req) => {
       const ids = (
         await sql<{ id: string }[]>`SELECT s.id FROM view_sessions s ${whereFor(sql, req.body.filter)}`
@@ -152,7 +153,7 @@ export async function gdprRoutes(fastify: FastifyInstance, ctx: AppContext) {
     },
   );
 
-  app.delete('/analytics/sessions/:id', { ...owner, schema: { params: idParams } }, async (req) => {
+  app.delete('/analytics/sessions/:id', { ...sensitive, schema: { params: idParams } }, async (req) => {
     const r = await hardDeleteSessions(ctx, [req.params.id]);
     if (!r.sessions) throw notFound('session');
     await audit(sql, {

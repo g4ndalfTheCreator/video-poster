@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import {
   useEffect,
+  useId,
   useRef,
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
@@ -226,6 +227,7 @@ export function Dialog({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -235,11 +237,14 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onClose={onClose}
       className="m-auto w-[min(36rem,calc(100vw-2rem))] rounded-lg border border-border bg-card p-0 text-fg backdrop:bg-black/50"
     >
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="font-semibold">{title}</h2>
+        <h2 id={titleId} className="font-semibold">
+          {title}
+        </h2>
         <button className="text-muted-fg hover:text-fg" onClick={onClose} aria-label="close">
           ✕
         </button>

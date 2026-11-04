@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { cli, uniqueEmail, totpAt, currentStep, nextCode } from './support.js';
+import { cli, uniqueEmail, totpAt, currentStep, nextCode, psql } from './support.js';
+import { adminSession } from './admin.js';
 
 test('editor logs in, enrolls TOTP and logs in again with TOTP', async ({ page }) => {
   const email = uniqueEmail('editor');
@@ -46,4 +47,30 @@ test('viewer cannot mutate anything', async ({ page, request }) => {
   });
   expect(res.status()).toBe(403);
   void page;
+});
+
+test('sensitive actions ask for the password and code again, then continue', async ({ page }) => {
+  // the browser context shares cookies with page.request
+  const s = await adminSession(page.request, 'owner');
+  test.skip(
+    psql(`UPDATE admin_sessions SET reauth_at = now() - interval '1 hour'
+          WHERE user_id = (SELECT id FROM admin_users WHERE email = '${s.email}')`) === null,
+    'needs the compose stack',
+  );
+  await page.goto('/admin/settings?tab=tokens');
+  await page.getByPlaceholder(/Nimi|Name/).fill('grafana');
+  await page.getByRole('button', { name: /Luo token|Create token/ }).click();
+
+  const dialog = page.getByRole('dialog', { name: /Vahvista henkilöllisyys|Confirm it is you/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel(/Salasana|Password/).fill(s.password);
+  await dialog.getByLabel(/Koodi|Code/).fill(nextCode(s.secret));
+  await dialog.getByRole('button', { name: /Vahvista|Confirm/ }).click();
+  await expect(dialog).toBeHidden();
+  // the original request was retried after confirmation
+  await expect(page.locator('code').filter({ hasText: /.{20,}/ })).toBeVisible();
+
+  // own sessions are listed on the account tab
+  await page.goto('/admin/settings?tab=account');
+  await expect(page.getByText(/Tämä laite|This device/)).toBeVisible();
 });

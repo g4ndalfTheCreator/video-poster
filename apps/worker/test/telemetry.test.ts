@@ -8,7 +8,7 @@ import { enrichIp } from '../src/ipintel/enrich.js';
 import { classifyNetwork, ptrDomain } from '../src/ipintel/classify.js';
 import { rangeToCidr } from '../src/ipintel/rdap.js';
 import { matchVisitor } from '../src/telemetry/visitors.js';
-import { notifyOpen } from '../src/telemetry/notify.js';
+import { notifyAdmin, notifyOpen } from '../src/telemetry/notify.js';
 import { parseSyslogLine, storeMediaLines } from '../src/telemetry/syslog.js';
 import { closeIdleSessions } from '../src/telemetry/sessions.js';
 
@@ -429,5 +429,34 @@ describe('telemetry', () => {
       server.close();
       smtp.close();
     }
+  });
+  it('alerts admins about sign-ins from new addresses', async () => {
+    const calls: { url: string; body: string }[] = [];
+    const fetcher = (async (url: string, init: { body: string }) => {
+      calls.push({ url, body: init.body });
+      return new Response('{}');
+    }) as unknown as typeof fetch;
+    await sql()`DELETE FROM notification_channels`;
+    await sql()`INSERT INTO notification_channels (id, kind, config) VALUES
+      (${newId()}, 'webhook', ${encryptJson(t.ctx.config.APP_ENCRYPTION_KEY, { url: 'http://hooks.test/x' })})`;
+    const userId = newId();
+    await sql()`INSERT INTO admin_users (id, email, password_hash, role) VALUES (${userId}, 'sec@example.com', 'x', 'owner')`;
+    const deps = { sql: sql(), config: t.ctx.config, log, fetcher, enrichWaitMs: 0 };
+    expect(
+      await notifyAdmin(deps, { kind: 'admin_login', userId, ip: '198.51.100.4', userAgent: 'Firefox' }),
+    ).toBe(true);
+    expect(calls).toHaveLength(1);
+    const payload = JSON.parse(calls[0]!.body) as {
+      kind: string;
+      title: string;
+      body: string;
+      sessionId: null;
+    };
+    expect(payload.kind).toBe('admin_login');
+    expect(payload.title).toContain('sec@example.com');
+    expect(payload.body).toContain('198.51.100.4');
+    expect(payload.sessionId).toBeNull();
+    const logged = await sql()`SELECT ok FROM notifications_log WHERE kind = 'admin_login'`;
+    expect(logged).toEqual([{ ok: true }]);
   });
 });

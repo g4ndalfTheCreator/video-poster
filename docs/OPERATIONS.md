@@ -51,7 +51,9 @@ addresses to /24 (/48) and mask tokens in URLs; viewer telemetry is only in the 
 
 ## Security checklist
 
-- Keep `/admin` and `/metrics` off the internet (`ADMIN_ALLOW_CIDRS`, or a separate `ADMIN_HOST`).
+- Keep `/admin` and `/metrics` off the internet (`ADMIN_ALLOW_CIDRS`, or a separate `ADMIN_HOST`). On a
+  VPS use `ADMIN_LISTENER=private` and an SSH tunnel or VPN — see [VPS.md](VPS.md).
+- Add a notification channel: owners are alerted about sign-ins from new addresses and lockouts.
 - Use TLS for anything beyond a trusted LAN.
 - Rotate `MEDIA_SIGNING_KEY` / `INGEST_SIGNING_KEY` if leaked (active playback URLs expire within 6 h /
   24 h). `APP_ENCRYPTION_KEY` encrypts notification credentials — re-enter channels after rotating it.

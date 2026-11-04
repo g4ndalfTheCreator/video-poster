@@ -116,7 +116,8 @@ describe('admin auth', () => {
     const me = await t.app.inject({ url: '/api/admin/me', headers: { cookie: viewer.cookie } });
     expect(me.json()).toMatchObject({ role: 'viewer', stage: 'full' });
 
-    const skip = /\/auth\/|\/me\/password$/;
+    // own-account security (password, signing out own devices) is allowed for every role
+    const skip = /\/auth\/|\/me\/password$|\/me\/sessions/;
     const mutating = t.app.routeList.filter(
       (r) =>
         r.url.startsWith('/api/admin') && !['GET', 'HEAD', 'OPTIONS'].includes(r.method) && !skip.test(r.url),

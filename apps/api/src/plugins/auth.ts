@@ -5,8 +5,8 @@ import type { AppContext } from '../context.js';
 import { forbidden, notFound, unauthorized, HttpError } from '../lib/errors.js';
 
 export const SESSION_COOKIE = 'vs_admin';
-const SLIDING_MS = 12 * 3600 * 1000;
 const ABSOLUTE_MS = 7 * 24 * 3600 * 1000;
+const idleMs = (ctx: AppContext) => ctx.config.ADMIN_SESSION_IDLE_MINUTES * 60_000;
 
 export type AuthStage = 'pending_totp' | 'enroll_required' | 'full';
 
@@ -20,6 +20,8 @@ export interface AdminPrincipal {
   csrfToken: string | null;
   totpEnabled: boolean;
   stage: AuthStage;
+  /** Last password (+ TOTP) check in this session; null for API tokens. */
+  reauthAt: Date | null;
 }
 
 declare module 'fastify' {
@@ -50,7 +52,48 @@ export function requireRole(min: Role) {
   };
 }
 
+/**
+ * Sensitive actions (users, API tokens, notification channels, settings, GDPR erase) need a password
+ * (+ TOTP) check within ADMIN_REAUTH_MINUTES, so a stolen session cookie alone cannot take over the
+ * installation. The admin UI asks for the password and retries on `reauth_required`.
+ */
+export function requireRecentAuth(ctx: AppContext) {
+  return async (req: FastifyRequest) => {
+    const p = req.admin;
+    if (!p) throw unauthorized();
+    const fresh = p.reauthAt && Date.now() - p.reauthAt.getTime() < ctx.config.ADMIN_REAUTH_MINUTES * 60_000;
+    if (!fresh) throw new HttpError(401, 'reauth_required', 'confirm your password to continue');
+  };
+}
+
+/**
+ * Which nginx listener received the request. nginx always overwrites X-VS-Listener; the header is
+ * only believed from a trusted proxy, so a client reaching the api some other way cannot claim it.
+ */
+export function listenerOf(ctx: AppContext, req: FastifyRequest): 'admin' | 'public' {
+  return req.headers['x-vs-listener'] === 'admin' &&
+    ipInCidrs(req.socket.remoteAddress, ctx.config.TRUSTED_PROXIES)
+    ? 'admin'
+    : 'public';
+}
+
+/**
+ * Secure cookies follow PUBLIC_SCHEME, except on the private admin listener over plain HTTP (SSH tunnel
+ * or VPN to 127.0.0.1:8081), where a Secure cookie would not be stored by every browser.
+ */
+export function adminCookieOptions(ctx: AppContext, req: FastifyRequest) {
+  const plainPrivate = listenerOf(ctx, req) === 'admin' && req.headers['x-forwarded-proto'] === 'http';
+  return {
+    httpOnly: true,
+    secure: ctx.config.cookieSecure && !plainPrivate,
+    sameSite: 'strict' as const,
+    path: '/',
+  };
+}
+
 export function isAdminNetworkAllowed(ctx: AppContext, req: FastifyRequest): boolean {
+  // ADMIN_LISTENER=private: only requests that nginx received on the private admin listener.
+  if (ctx.config.ADMIN_LISTENER === 'private' && listenerOf(ctx, req) !== 'admin') return false;
   if (ctx.config.ADMIN_HOST) {
     const host = (req.headers.host ?? '').split(':')[0];
     if (host !== ctx.config.ADMIN_HOST.split(':')[0]) return false;
@@ -69,17 +112,12 @@ export async function createAdminSession(
   const csrfToken = randomToken(24);
   const now = Date.now();
   await ctx.database.sql`
-    INSERT INTO admin_sessions (id, user_id, token_hash, csrf_token, stage, ip, user_agent, expires_at, absolute_expires_at)
+    INSERT INTO admin_sessions (id, user_id, token_hash, csrf_token, stage, ip, user_agent, expires_at, absolute_expires_at, reauth_at)
     VALUES (${newId()}, ${userId}, ${sha256Hex(token)}, ${csrfToken}, ${stage}, ${req.clientIp},
             ${(req.headers['user-agent'] ?? '').slice(0, 500)},
-            ${new Date(now + (stage === 'full' ? SLIDING_MS : 10 * 60 * 1000))}, ${new Date(now + ABSOLUTE_MS)})`;
-  reply.setCookie(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: ctx.config.cookieSecure,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: ABSOLUTE_MS / 1000,
-  });
+            ${new Date(now + (stage === 'full' ? idleMs(ctx) : 10 * 60 * 1000))}, ${new Date(now + ABSOLUTE_MS)},
+            ${stage === 'full' ? new Date(now) : null})`;
+  reply.setCookie(SESSION_COOKIE, token, { ...adminCookieOptions(ctx, req), maxAge: ABSOLUTE_MS / 1000 });
   return { csrfToken };
 }
 
@@ -103,6 +141,7 @@ async function loadPrincipal(ctx: AppContext, req: FastifyRequest): Promise<Admi
       csrfToken: null,
       totpEnabled: false,
       stage: 'full',
+      reauthAt: null,
     };
   }
   const cookie = req.cookies[SESSION_COOKIE];
@@ -114,13 +153,14 @@ async function loadPrincipal(ctx: AppContext, req: FastifyRequest): Promise<Admi
       stage: 'pending_totp' | 'full';
       last_seen_at: Date;
       absolute_expires_at: Date;
+      reauth_at: Date | null;
       user_id: string;
       email: string;
       role: Role;
       totp_secret: string | null;
     }[]
   >`
-    SELECT s.id AS session_id, s.csrf_token, s.stage, s.last_seen_at, s.absolute_expires_at,
+    SELECT s.id AS session_id, s.csrf_token, s.stage, s.last_seen_at, s.absolute_expires_at, s.reauth_at,
            u.id AS user_id, u.email, u.role, u.totp_secret
     FROM admin_sessions s JOIN admin_users u ON u.id = s.user_id
     WHERE s.token_hash = ${sha256Hex(cookie)} AND s.expires_at > now() AND s.absolute_expires_at > now()
@@ -128,7 +168,7 @@ async function loadPrincipal(ctx: AppContext, req: FastifyRequest): Promise<Admi
   const s = rows[0];
   if (!s) return null;
   if (s.stage === 'full' && Date.now() - s.last_seen_at.getTime() > 60_000) {
-    const expires = new Date(Math.min(Date.now() + SLIDING_MS, s.absolute_expires_at.getTime()));
+    const expires = new Date(Math.min(Date.now() + idleMs(ctx), s.absolute_expires_at.getTime()));
     await sql`UPDATE admin_sessions SET last_seen_at = now(), expires_at = ${expires} WHERE id = ${s.session_id}`;
   }
   const totpEnabled = !!s.totp_secret;
@@ -145,6 +185,7 @@ async function loadPrincipal(ctx: AppContext, req: FastifyRequest): Promise<Admi
     csrfToken: s.csrf_token,
     totpEnabled,
     stage,
+    reauthAt: s.reauth_at,
   };
 }
 

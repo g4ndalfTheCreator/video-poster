@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { ReauthDialog } from './reauth';
 import { useQueryClient } from '@tanstack/react-query';
 import { post, setCsrf } from '../lib/api';
 import { can, type Me } from '../lib/auth';
@@ -92,6 +93,7 @@ export function Layout({ me, children }: { me: Me; children: ReactNode }) {
         </nav>
       </aside>
       <main className="min-w-0 flex-1 p-4 md:p-6">{children}</main>
+      <ReauthDialog me={me} />
     </div>
   );
 }

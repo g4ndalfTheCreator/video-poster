@@ -56,7 +56,12 @@ export function SettingsPage() {
         {tab === 'tokens' && <TokensCard />}
         {tab === 'channels' && <ChannelsCard />}
         {tab === 'gdpr' && <GdprCard />}
-        {tab === 'account' && <AccountCard />}
+        {tab === 'account' && (
+          <div className="space-y-4">
+            <AccountCard />
+            <SessionsCard />
+          </div>
+        )}
       </div>
     </>
   );
@@ -470,6 +475,67 @@ function TokensCard() {
           ))}
         </tbody>
       </Table>
+    </Card>
+  );
+}
+
+interface AdminSession {
+  id: string;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+}
+
+/** Own sign-ins on other devices; any of them can be signed out. */
+function SessionsCard() {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['me', 'sessions'], queryFn: () => get<AdminSession[]>('/me/sessions') });
+  const refresh = () => qc.invalidateQueries({ queryKey: ['me', 'sessions'] });
+  const revoke = useMutation({ mutationFn: (id: string) => del(`/me/sessions/${id}`), onSuccess: refresh });
+  const others = useMutation({ mutationFn: () => post('/me/sessions/revoke-others'), onSuccess: refresh });
+  const rows = q.data ?? [];
+  return (
+    <Card title={t('account.sessions')}>
+      <p className="mb-3 text-sm text-muted-fg">{t('account.sessionsHint')}</p>
+      <Table>
+        <thead>
+          <tr>
+            <th>{t('account.device')}</th>
+            <th>IP</th>
+            <th>{t('account.lastSeen')}</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((s) => (
+            <tr key={s.id}>
+              <td className="max-w-72 truncate" title={s.userAgent ?? ''}>
+                {s.userAgent || '–'}
+              </td>
+              <td className="tabular-nums">{s.ip ?? '–'}</td>
+              <td className="whitespace-nowrap">{fmtDateTime(s.lastSeenAt)}</td>
+              <td className="text-right">
+                {s.current ? (
+                  <Badge tone="ok">{t('account.thisDevice')}</Badge>
+                ) : (
+                  <Button size="sm" variant="secondary" onClick={() => revoke.mutate(s.id)}>
+                    {t('account.signOut')}
+                  </Button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+      <ErrorText error={revoke.error ?? others.error} />
+      {rows.length > 1 && (
+        <Button className="mt-3" size="sm" variant="danger" onClick={() => others.mutate()}>
+          {t('account.signOutOthers')}
+        </Button>
+      )}
     </Card>
   );
 }

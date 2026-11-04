@@ -72,11 +72,27 @@ export function GdprCard() {
         <div className="mt-4 space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-sm">{t('gdpr.found', { n: rows.length })}</span>
-            <a href={`/api/admin/gdpr/export${qs(filter)}`}>
-              <Button size="sm" variant="secondary" disabled={!rows.length}>
-                {t('gdpr.export')}
-              </Button>
-            </a>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!rows.length}
+              onClick={() =>
+                // fetched (not a plain link) so the re-authentication prompt can run first
+                void get<unknown>(`/gdpr/export${qs(filter)}`)
+                  .then((data) => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(
+                      new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+                    );
+                    a.download = `gdpr-export-${new Date().toISOString().slice(0, 10)}.json`;
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+                  })
+                  .catch(setErr)
+              }
+            >
+              {t('gdpr.export')}
+            </Button>
             <Button size="sm" variant="danger" disabled={!rows.length} onClick={() => setConfirm(true)}>
               {t('gdpr.delete')}
             </Button>

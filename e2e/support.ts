@@ -16,6 +16,29 @@ export function cli(args: string[], env: Record<string, string> = {}): string {
   return execFileSync(exec[0]!, cmd, { env: { ...process.env, ...env }, encoding: 'utf8' }).trim();
 }
 
+/** Runs SQL in the compose stack's postgres (null when E2E_EXEC points to a local api instead). */
+export function psql(query: string): string | null {
+  if (process.env.E2E_EXEC) return null;
+  return execFileSync(
+    'docker',
+    [
+      'compose',
+      '-f',
+      'deploy/docker-compose.yml',
+      '--env-file',
+      'deploy/.env',
+      'exec',
+      '-T',
+      'postgres',
+      'sh',
+      '-c',
+      'psql -v ON_ERROR_STOP=1 -tA -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "$0"',
+      query,
+    ],
+    { encoding: 'utf8' },
+  ).trim();
+}
+
 export function uniqueEmail(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
 }

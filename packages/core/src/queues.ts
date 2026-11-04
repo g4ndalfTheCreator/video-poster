@@ -41,7 +41,10 @@ export interface MatchVisitorJob {
   fingerprintId: string;
 }
 export type NotifyJob =
-  { kind: 'open' | 'summary' | 'feedback'; sessionId: string } | { kind: 'test'; channelId: string };
+  | { kind: 'open' | 'summary' | 'feedback'; sessionId: string }
+  | { kind: 'test'; channelId: string }
+  /** Admin sign-in from an address not seen for this user in 90 days, or an account lockout. */
+  | { kind: 'admin_login' | 'admin_lockout'; userId: string; ip: string | null; userAgent?: string };
 
 export function createBoss(databaseUrl: string): PgBoss {
   return new PgBoss({ connectionString: databaseUrl, schema: 'pgboss', max: 4 });
