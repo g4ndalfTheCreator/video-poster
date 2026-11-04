@@ -254,3 +254,25 @@ arrow keys / Page Up / Page Down move between video and documents. To stay insid
 the player is split into a core plus two bundles (`player.js` with the classic controls, `story.js`
 with the story UI) and the CSS into `base.css` + `watch.css` / `story.css`; each page loads only its
 own layout. `build.mjs` checks the larger page and the API test checks the real rendered story page.
+
+## D36 – Admin hardening for internet-facing installs
+
+On a VPS the network allowlist alone is weak: operators tend to open it to `0.0.0.0/0`, and Docker's
+userland proxy can make internet clients appear as the bridge gateway, which is inside the default
+private ranges. nginx therefore has a second, private listener (8081, published on
+`ADMIN_BIND`, default `127.0.0.1`), and `ADMIN_LISTENER=private` removes every admin path from the public
+listener. nginx tags each proxied request with `X-VS-Listener` (always overwritten) and the api only
+believes it from `TRUSTED_PROXIES`, so the check also holds if the api were reached another way. The
+default stays `public` so existing LAN installs keep working. Session cookies drop `Secure` only on the
+private listener over plain HTTP (SSH tunnel to `127.0.0.1`), where the tunnel provides encryption.
+
+Sensitive owner actions (users, API tokens, notification channels, settings, GDPR export/erase) need a
+password + TOTP check within `ADMIN_REAUTH_MINUTES` (default 10), stored as `admin_sessions.reauth_at`;
+a fresh sign-in counts. The admin UI shows a dialog on `reauth_required` and retries the request. Five
+wrong attempts in 5 minutes end the session. GDPR export is now fetched by the UI instead of a plain
+link so the dialog can run. Users can list and sign out their own sessions (allowed for every role,
+like changing one's own password). Sign-ins from an address without a successful sign-in for that user
+in 90 days, and lockouts, are sent to the notification channels (`notifications_log` rows without a
+session). nginx adds a per-address limit (10/min, burst 10) on login, TOTP, re-auth and bootstrap only,
+so TOTP enrollment and normal use are not throttled. The admin session idle timeout is configurable
+(`ADMIN_SESSION_IDLE_MINUTES`). Insecure combinations are logged at startup and shown on the System page.

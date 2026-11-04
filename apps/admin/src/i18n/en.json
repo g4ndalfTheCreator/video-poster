@@ -399,7 +399,18 @@
     "geoip": "GeoIP database",
     "backup": "Last backup",
     "none": "unknown",
-    "attribution": "IP geolocation by DB-IP (CC BY 4.0)"
+    "attribution": "IP geolocation by DB-IP (CC BY 4.0)",
+    "securityWarning": "Security",
+    "adminListener": "Admin access",
+    "listener": {
+      "public": "Public port",
+      "private": "Private port only"
+    },
+    "warn": {
+      "admin_open_to_internet": "ADMIN_ALLOW_CIDRS allows every address, so the admin panel is reachable from the whole internet. Set ADMIN_LISTENER=private and use an SSH tunnel or VPN (docs/VPS.md).",
+      "admin_on_public_listener": "The admin panel is served on the public HTTPS port. On a VPS set ADMIN_LISTENER=private (docs/VPS.md).",
+      "admin_without_tls": "The admin panel is reachable from the internet over plain HTTP; passwords and session cookies can be intercepted."
+    }
   },
   "gdpr": {
     "tab": "Privacy (GDPR)",
@@ -439,5 +450,19 @@
     },
     "feedback": "Feedback",
     "docs": "Documents"
+  },
+  "reauth": {
+    "title": "Confirm it is you",
+    "body": "This action changes users, access or personal data. Enter your password and authenticator code to continue.",
+    "confirm": "Confirm"
+  },
+  "account": {
+    "sessions": "Signed-in devices",
+    "sessionsHint": "Sign out any device you do not recognise, then change your password.",
+    "device": "Browser",
+    "lastSeen": "Last active",
+    "thisDevice": "This device",
+    "signOut": "Sign out",
+    "signOutOthers": "Sign out all other devices"
   }
 }

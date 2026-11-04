@@ -76,6 +76,12 @@ Put `fullchain.pem` and `privkey.pem` in `deploy/tls/` (for example from `mkcert
 LAN, or an ACME client on a public host), set `PUBLIC_SCHEME=https` and restart nginx. nginx then also
 listens on 443 and sends HSTS.
 
+### On a VPS
+
+Serve the admin panel only on a private port reached through an SSH tunnel or VPN
+(`ADMIN_LISTENER=private`). [docs/VPS.md](docs/VPS.md) covers that, TLS, firewall and account
+hardening.
+
 ### Behind a reverse proxy or tunnel
 
 Set `EDGE_TRUSTED_PROXIES` to the proxy's address(es) so the viewer IP from `X-Forwarded-For` is used;

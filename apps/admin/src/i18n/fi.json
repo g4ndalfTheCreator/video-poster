@@ -399,7 +399,18 @@
     "geoip": "GeoIP-tietokanta",
     "backup": "Viimeisin varmuuskopio",
     "none": "ei tietoa",
-    "attribution": "IP-sijainti: DB-IP (CC BY 4.0)"
+    "attribution": "IP-sijainti: DB-IP (CC BY 4.0)",
+    "securityWarning": "Tietoturva",
+    "adminListener": "Hallinnan pääsy",
+    "listener": {
+      "public": "Julkinen portti",
+      "private": "Vain yksityinen portti"
+    },
+    "warn": {
+      "admin_open_to_internet": "ADMIN_ALLOW_CIDRS sallii kaikki osoitteet, joten hallintapaneeli näkyy koko internetiin. Aseta ADMIN_LISTENER=private ja käytä SSH-tunnelia tai VPN:ää (docs/VPS.md).",
+      "admin_on_public_listener": "Hallintapaneeli on tarjolla julkisessa HTTPS-portissa. Aseta VPS:llä ADMIN_LISTENER=private (docs/VPS.md).",
+      "admin_without_tls": "Hallintapaneeli näkyy internetiin salaamattomana HTTP:nä; salasanat ja istuntoevästeet voidaan siepata."
+    }
   },
   "gdpr": {
     "tab": "Tietosuoja (GDPR)",
@@ -439,5 +450,19 @@
     },
     "feedback": "Palaute",
     "docs": "Dokumentit"
+  },
+  "reauth": {
+    "title": "Vahvista henkilöllisyys",
+    "body": "Tämä toiminto muuttaa käyttäjiä, käyttöoikeuksia tai henkilötietoja. Anna salasana ja todennussovelluksen koodi jatkaaksesi.",
+    "confirm": "Vahvista"
+  },
+  "account": {
+    "sessions": "Kirjautuneet laitteet",
+    "sessionsHint": "Kirjaa ulos laitteet, joita et tunnista, ja vaihda sitten salasana.",
+    "device": "Selain",
+    "lastSeen": "Viimeksi aktiivinen",
+    "thisDevice": "Tämä laite",
+    "signOut": "Kirjaa ulos",
+    "signOutOthers": "Kirjaa ulos kaikki muut laitteet"
   }
 }

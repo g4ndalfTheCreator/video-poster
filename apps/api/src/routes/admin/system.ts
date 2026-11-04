@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { statfs, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { geoIp } from '@vs/core';
+import { adminSecurityWarnings, geoIp } from '@vs/core';
 import type { AppContext } from '../../context.js';
 import { requireRole } from '../../plugins/auth.js';
 
@@ -27,6 +27,12 @@ export async function systemRoutes(app: FastifyInstance, ctx: AppContext) {
     return {
       version: ctx.config.BUILD_VERSION,
       health: 'ok',
+      security: {
+        adminListener: ctx.config.ADMIN_LISTENER,
+        sessionIdleMinutes: ctx.config.ADMIN_SESSION_IDLE_MINUTES,
+        reauthMinutes: ctx.config.ADMIN_REAUTH_MINUTES,
+        warnings: adminSecurityWarnings(ctx.config),
+      },
       disk: disk
         ? { total: Number(disk.blocks) * Number(disk.bsize), free: Number(disk.bavail) * Number(disk.bsize) }
         : null,

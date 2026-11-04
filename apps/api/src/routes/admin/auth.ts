@@ -1,13 +1,22 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { audit, sha256Hex, newId, hitRateLimit, encryptJson, decryptJson } from '@vs/core';
-import { bootstrapSchema, loginSchema, totpSchema } from '@vs/shared';
+import {
+  audit,
+  sha256Hex,
+  newId,
+  hitRateLimit,
+  encryptJson,
+  decryptJson,
+  QUEUES,
+  type NotifyJob,
+} from '@vs/core';
+import { bootstrapSchema, idParams, loginSchema, reauthSchema, totpSchema } from '@vs/shared';
 import type { AppContext } from '../../context.js';
 import { hashPassword, verifyPassword, dummyVerify } from '../../lib/password.js';
 import { generateTotpSecret, otpauthUrl, verifyTotp } from '../../lib/totp.js';
-import { badRequest, HttpError, unauthorized, tooMany, conflict } from '../../lib/errors.js';
-import { createAdminSession, SESSION_COOKIE } from '../../plugins/auth.js';
+import { badRequest, HttpError, unauthorized, tooMany, conflict, notFound } from '../../lib/errors.js';
+import { adminCookieOptions, createAdminSession, SESSION_COOKIE } from '../../plugins/auth.js';
 
 const LOCK_AFTER = 10;
 const LOCK_MINUTES = 15;
@@ -16,6 +25,24 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   const sql = ctx.database.sql;
   const key = ctx.config.APP_ENCRYPTION_KEY;
+  const idleMinutes = ctx.config.ADMIN_SESSION_IDLE_MINUTES;
+
+  /**
+   * Alerts the notification channels when a user signs in from an address with no successful sign-in
+   * in the last 90 days. Must run before the current sign-in is audited.
+   */
+  const alertIfNewAddress = async (req: FastifyRequest, userId: string) => {
+    const seen = await sql`
+      SELECT 1 FROM audit_log WHERE actor_user_id = ${userId} AND action = 'auth.login'
+        AND ip IS NOT DISTINCT FROM ${req.clientIp}::inet AND created_at > now() - interval '90 days' LIMIT 1`;
+    if (seen.length) return;
+    await ctx.jobs.send(QUEUES.notify, {
+      kind: 'admin_login',
+      userId,
+      ip: req.clientIp,
+      userAgent: (req.headers['user-agent'] ?? '').slice(0, 200),
+    } satisfies NotifyJob);
+  };
 
   app.get('/auth/state', { config: { public: true } }, async () => {
     const r = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM admin_users WHERE deleted_at IS NULL`;
@@ -97,6 +124,13 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
       await sql`UPDATE admin_users SET failed_logins = ${failed >= LOCK_AFTER ? 0 : failed},
                 locked_until = ${failed >= LOCK_AFTER ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null}
                 WHERE id = ${user.id}`;
+      if (failed >= LOCK_AFTER) {
+        await ctx.jobs.send(QUEUES.notify, {
+          kind: 'admin_lockout',
+          userId: user.id,
+          ip: req.clientIp,
+        } satisfies NotifyJob);
+      }
       throw await fail('bad_password');
     }
     await sql`UPDATE admin_users SET failed_logins = 0, locked_until = NULL WHERE id = ${user.id}`;
@@ -104,6 +138,7 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
     const { csrfToken } = await createAdminSession(ctx, reply, req, user.id, stage);
     if (stage === 'full') {
       await sql`UPDATE admin_users SET last_login_at = now() WHERE id = ${user.id}`;
+      await alertIfNewAddress(req, user.id);
       await audit(sql, { actorUserId: user.id, action: 'auth.login', ip: req.clientIp });
     }
     return { stage: stage === 'full' && user.role !== 'viewer' ? 'enroll_required' : stage, csrfToken };
@@ -126,8 +161,10 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
         throw new HttpError(401, 'invalid_code', 'invalid code');
       }
       await sql`UPDATE admin_users SET totp_last_step = ${step}, last_login_at = now() WHERE id = ${p.userId}`;
-      await sql`UPDATE admin_sessions SET stage = 'full', expires_at = least(now() + interval '12 hours', absolute_expires_at)
+      await sql`UPDATE admin_sessions SET stage = 'full', reauth_at = now(),
+                  expires_at = least(now() + make_interval(mins => ${idleMinutes}), absolute_expires_at)
                 WHERE id = ${p.sessionId}`;
+      await alertIfNewAddress(req, p.userId!);
       await audit(sql, {
         actorUserId: p.userId,
         action: 'auth.login',
@@ -175,7 +212,7 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
     async (req, reply) => {
       const p = req.admin!;
       if (p.sessionId) await sql`DELETE FROM admin_sessions WHERE id = ${p.sessionId}`;
-      reply.clearCookie(SESSION_COOKIE, { path: '/' });
+      reply.clearCookie(SESSION_COOKIE, adminCookieOptions(ctx, req));
       await audit(sql, { actorUserId: p.userId, action: 'auth.logout', ip: req.clientIp });
       return { ok: true };
     },
@@ -197,6 +234,81 @@ export async function authRoutes(fastify: FastifyInstance, ctx: AppContext) {
       };
     },
   );
+
+  app.post('/auth/reauth', { schema: { body: reauthSchema } }, async (req, reply) => {
+    const p = req.admin!;
+    const rl = await hitRateLimit(sql, `reauth:${p.userId}`, 5, 300);
+    if (rl.limited) {
+      // Someone holding this session keeps guessing: end the session instead of waiting it out.
+      await sql`DELETE FROM admin_sessions WHERE id = ${p.sessionId}`;
+      reply.clearCookie(SESSION_COOKIE, adminCookieOptions(ctx, req));
+      await audit(sql, { actorUserId: p.userId, action: 'auth.reauth_locked', ip: req.clientIp });
+      throw tooMany('too many attempts; signed out');
+    }
+    const rows = await sql<
+      { password_hash: string; totp_secret: string | null; totp_last_step: number | null }[]
+    >`
+      SELECT password_hash, totp_secret, totp_last_step FROM admin_users WHERE id = ${p.userId}`;
+    const u = rows[0];
+    const failed = async (reason: string) => {
+      await audit(sql, {
+        actorUserId: p.userId,
+        action: 'auth.reauth_failed',
+        diff: { reason },
+        ip: req.clientIp,
+      });
+      return new HttpError(401, 'invalid_credentials', 'password or code is wrong');
+    };
+    if (!u || !(await verifyPassword(u.password_hash, req.body.password))) throw await failed('bad_password');
+    let step: number | null = null;
+    if (u.totp_secret) {
+      if (!req.body.code) throw await failed('missing_code');
+      step = verifyTotp(decryptJson<string>(key, u.totp_secret), req.body.code, u.totp_last_step);
+      if (step === null) throw await failed('bad_code');
+      await sql`UPDATE admin_users SET totp_last_step = ${step} WHERE id = ${p.userId}`;
+    }
+    await sql`UPDATE admin_sessions SET reauth_at = now() WHERE id = ${p.sessionId}`;
+    await audit(sql, { actorUserId: p.userId, action: 'auth.reauth', ip: req.clientIp });
+    return { ok: true, totp: step !== null };
+  });
+
+  // ---- own sessions (sign out other devices)
+  app.get('/me/sessions', async (req) => {
+    const p = req.admin!;
+    return sql`
+      SELECT id, host(ip) AS ip, user_agent AS "userAgent", created_at AS "createdAt", last_seen_at AS "lastSeenAt",
+             expires_at AS "expiresAt", (id = ${p.sessionId}) AS current
+      FROM admin_sessions WHERE user_id = ${p.userId} AND expires_at > now() AND absolute_expires_at > now()
+      ORDER BY last_seen_at DESC`;
+  });
+
+  app.delete('/me/sessions/:id', { schema: { params: idParams } }, async (req) => {
+    const p = req.admin!;
+    const del =
+      await sql`DELETE FROM admin_sessions WHERE id = ${req.params.id} AND user_id = ${p.userId} RETURNING id`;
+    if (!del.length) throw notFound();
+    await audit(sql, {
+      actorUserId: p.userId,
+      action: 'auth.session_revoked',
+      entity: 'admin_session',
+      entityId: req.params.id,
+      ip: req.clientIp,
+    });
+    return { ok: true };
+  });
+
+  app.post('/me/sessions/revoke-others', async (req) => {
+    const p = req.admin!;
+    const del =
+      await sql`DELETE FROM admin_sessions WHERE user_id = ${p.userId} AND id <> ${p.sessionId} RETURNING id`;
+    await audit(sql, {
+      actorUserId: p.userId,
+      action: 'auth.sessions_revoked',
+      diff: { count: del.length },
+      ip: req.clientIp,
+    });
+    return { revoked: del.length };
+  });
 
   app.post(
     '/me/password',

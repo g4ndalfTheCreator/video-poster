@@ -100,8 +100,8 @@ export function summaryMessage(s: SessionInfo, origin: string): { title: string;
 async function deliver(
   deps: NotifyDeps,
   msg: { title: string; body: string; url: string },
-  sessionId: string,
-  linkId: string,
+  sessionId: string | null,
+  linkId: string | null,
   kind: string,
 ) {
   const { sql, config } = deps;
@@ -244,6 +244,31 @@ export async function notifyFeedback(deps: NotifyDeps, sessionId: string): Promi
     r.link_id,
     'feedback',
   );
+  return true;
+}
+
+/** Admin security events: sign-in from a new address, account lockout. */
+export async function notifyAdmin(
+  deps: NotifyDeps,
+  d: { kind: 'admin_login' | 'admin_lockout'; userId: string; ip: string | null; userAgent?: string },
+): Promise<boolean> {
+  const u = await deps.sql<{ email: string }[]>`SELECT email FROM admin_users WHERE id = ${d.userId}`;
+  if (!u[0]) return false;
+  const title =
+    d.kind === 'admin_login'
+      ? `Uusi kirjautuminen hallintaan: ${u[0].email}`
+      : `Hallintatili lukittu: ${u[0].email}`;
+  const body = [
+    d.kind === 'admin_login'
+      ? 'Kirjautuminen osoitteesta, jota ei ole käytetty 90 päivään.'
+      : 'Liian monta väärää salasanaa, tili lukittu 15 minuutiksi.',
+    `IP: ${d.ip ?? '?'}`,
+    d.userAgent ? `Selain: ${d.userAgent}` : '',
+    'Jos tämä et ollut sinä: kirjaudu sisään, kirjaa muut istunnot ulos ja vaihda salasana.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+  await deliver(deps, { title, body, url: `${deps.config.publicOrigin}/admin/audit` }, null, null, d.kind);
   return true;
 }
 

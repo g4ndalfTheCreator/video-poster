@@ -16,6 +16,12 @@ interface System {
   failedJobs: { name: string; error: string | null; at: string | null }[];
   geoip: { city: boolean; asn: boolean; source: string };
   backup: { finishedAt?: string; ok?: boolean; file?: string; sizeBytes?: number } | null;
+  security: {
+    adminListener: 'public' | 'private';
+    sessionIdleMinutes: number;
+    reauthMinutes: number;
+    warnings: string[];
+  };
 }
 
 export function SystemPage() {
@@ -31,7 +37,20 @@ export function SystemPage() {
     <>
       <PageHeader title={t('sys.title')} />
       <div className="space-y-4">
+        {s.security.warnings.map((w) => (
+          <div key={w} role="alert" className="rounded-md border border-warn bg-warn/10 p-3 text-sm">
+            <strong>{t('sys.securityWarning')}:</strong> {t(`sys.warn.${w}`)}
+          </div>
+        ))}
         <KpiGrid>
+          <Stat
+            label={t('sys.adminListener')}
+            value={
+              <Badge tone={s.security.adminListener === 'private' ? 'ok' : 'warn'}>
+                {t(`sys.listener.${s.security.adminListener}`)}
+              </Badge>
+            }
+          />
           <Stat label={t('sys.version')} value={<span className="text-base">{s.version}</span>} />
           <Stat label={t('sys.health')} value={<Badge tone="ok">{s.health}</Badge>} />
           <Stat

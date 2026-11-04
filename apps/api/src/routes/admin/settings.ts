@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { audit, getSettings, putSettings, diffObjects } from '@vs/core';
 import { settingsPatchSchema } from '@vs/shared';
 import type { AppContext } from '../../context.js';
-import { requireRole } from '../../plugins/auth.js';
+import { requireRecentAuth, requireRole } from '../../plugins/auth.js';
 
 export async function settingsRoutes(fastify: FastifyInstance, ctx: AppContext) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -13,7 +13,7 @@ export async function settingsRoutes(fastify: FastifyInstance, ctx: AppContext) 
 
   app.put(
     '/settings',
-    { preValidation: requireRole('owner'), schema: { body: settingsPatchSchema } },
+    { preValidation: [requireRole('owner'), requireRecentAuth(ctx)], schema: { body: settingsPatchSchema } },
     async (req) => {
       const before = await getSettings(sql, true);
       const next = await putSettings(sql, req.body);

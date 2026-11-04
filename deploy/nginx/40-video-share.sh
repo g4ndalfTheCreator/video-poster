@@ -10,6 +10,12 @@ echo "$ADMIN_ALLOW_CIDRS" | tr ',' '\n' | while read -r c; do
   [ -n "$c" ] && echo "$c 1;" >> "$out/admin-allow.conf"
 done
 
+case "${ADMIN_LISTENER:-public}" in
+  public | private) ;;
+  *) echo "ADMIN_LISTENER must be public or private" >&2; exit 1 ;;
+esac
+echo "map \$host \$admin_listener_mode { default ${ADMIN_LISTENER:-public}; }" > "$out/admin-listener.conf"
+
 : > "$out/real-ip.conf"
 if [ -n "${EDGE_TRUSTED_PROXIES:-}" ]; then
   echo "$EDGE_TRUSTED_PROXIES" | tr ',' '\n' | while read -r c; do

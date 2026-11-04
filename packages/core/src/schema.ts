@@ -42,6 +42,7 @@ export const adminSessions = pgTable('admin_sessions', {
   lastSeenAt: ts('last_seen_at').notNull().defaultNow(),
   expiresAt: ts('expires_at').notNull(),
   absoluteExpiresAt: ts('absolute_expires_at').notNull(),
+  reauthAt: ts('reauth_at'),
 });
 
 export const apiTokens = pgTable('api_tokens', {

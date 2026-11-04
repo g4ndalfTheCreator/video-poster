@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { audit, newId, randomToken, sha256Hex } from '@vs/core';
 import { userCreateSchema, userPatchSchema, apiTokenCreateSchema, idParams, pageQuery } from '@vs/shared';
 import type { AppContext } from '../../context.js';
-import { requireRole } from '../../plugins/auth.js';
+import { requireRecentAuth, requireRole } from '../../plugins/auth.js';
 import { hashPassword } from '../../lib/password.js';
 import { badRequest, conflict, notFound } from '../../lib/errors.js';
 import { offset, orderBy } from '../../lib/paging.js';
@@ -13,6 +13,8 @@ export async function userRoutes(fastify: FastifyInstance, ctx: AppContext) {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
   const sql = ctx.database.sql;
   const owner = { preValidation: requireRole('owner') };
+  /** Owner + a recent password (+ TOTP) check, see requireRecentAuth. */
+  const sensitive = { preValidation: [requireRole('owner'), requireRecentAuth(ctx)] };
 
   app.get('/users', owner, async () => {
     return sql`SELECT id, email, role, disabled, (totp_secret IS NOT NULL) AS "totpEnabled", last_login_at AS "lastLoginAt",
@@ -20,7 +22,7 @@ export async function userRoutes(fastify: FastifyInstance, ctx: AppContext) {
                FROM admin_users WHERE deleted_at IS NULL ORDER BY created_at`;
   });
 
-  app.post('/users', { ...owner, schema: { body: userCreateSchema } }, async (req) => {
+  app.post('/users', { ...sensitive, schema: { body: userCreateSchema } }, async (req) => {
     const { email, password, role } = req.body;
     const exists =
       await sql`SELECT 1 FROM admin_users WHERE lower(email) = lower(${email}) AND deleted_at IS NULL`;
@@ -38,37 +40,41 @@ export async function userRoutes(fastify: FastifyInstance, ctx: AppContext) {
     return { id };
   });
 
-  app.patch('/users/:id', { ...owner, schema: { params: idParams, body: userPatchSchema } }, async (req) => {
-    const { id } = req.params;
-    const rows = await sql<
-      { role: string; disabled: boolean }[]
-    >`SELECT role, disabled FROM admin_users WHERE id = ${id} AND deleted_at IS NULL`;
-    const before = rows[0];
-    if (!before) throw notFound('user');
-    const b = req.body;
-    if (id === req.admin!.userId && ((b.role && b.role !== 'owner') || b.disabled))
-      throw badRequest('cannot demote or disable yourself');
-    if (b.role) await sql`UPDATE admin_users SET role = ${b.role} WHERE id = ${id}`;
-    if (b.disabled !== undefined) {
-      await sql`UPDATE admin_users SET disabled = ${b.disabled} WHERE id = ${id}`;
-      if (b.disabled) await sql`DELETE FROM admin_sessions WHERE user_id = ${id}`;
-    }
-    if (b.password) {
-      await sql`UPDATE admin_users SET password_hash = ${await hashPassword(b.password)} WHERE id = ${id}`;
-      await sql`DELETE FROM admin_sessions WHERE user_id = ${id}`;
-    }
-    await audit(sql, {
-      actorUserId: req.admin!.userId,
-      action: 'user.update',
-      entity: 'admin_user',
-      entityId: id,
-      diff: { role: b.role, disabled: b.disabled, password: b.password ? '***' : undefined },
-      ip: req.clientIp,
-    });
-    return { ok: true };
-  });
+  app.patch(
+    '/users/:id',
+    { ...sensitive, schema: { params: idParams, body: userPatchSchema } },
+    async (req) => {
+      const { id } = req.params;
+      const rows = await sql<
+        { role: string; disabled: boolean }[]
+      >`SELECT role, disabled FROM admin_users WHERE id = ${id} AND deleted_at IS NULL`;
+      const before = rows[0];
+      if (!before) throw notFound('user');
+      const b = req.body;
+      if (id === req.admin!.userId && ((b.role && b.role !== 'owner') || b.disabled))
+        throw badRequest('cannot demote or disable yourself');
+      if (b.role) await sql`UPDATE admin_users SET role = ${b.role} WHERE id = ${id}`;
+      if (b.disabled !== undefined) {
+        await sql`UPDATE admin_users SET disabled = ${b.disabled} WHERE id = ${id}`;
+        if (b.disabled) await sql`DELETE FROM admin_sessions WHERE user_id = ${id}`;
+      }
+      if (b.password) {
+        await sql`UPDATE admin_users SET password_hash = ${await hashPassword(b.password)} WHERE id = ${id}`;
+        await sql`DELETE FROM admin_sessions WHERE user_id = ${id}`;
+      }
+      await audit(sql, {
+        actorUserId: req.admin!.userId,
+        action: 'user.update',
+        entity: 'admin_user',
+        entityId: id,
+        diff: { role: b.role, disabled: b.disabled, password: b.password ? '***' : undefined },
+        ip: req.clientIp,
+      });
+      return { ok: true };
+    },
+  );
 
-  app.post('/users/:id/reset-totp', { ...owner, schema: { params: idParams } }, async (req) => {
+  app.post('/users/:id/reset-totp', { ...sensitive, schema: { params: idParams } }, async (req) => {
     await sql`UPDATE admin_users SET totp_secret = NULL, totp_pending_secret = NULL, totp_last_step = NULL WHERE id = ${req.params.id}`;
     await sql`DELETE FROM admin_sessions WHERE user_id = ${req.params.id}`;
     await audit(sql, {
@@ -81,7 +87,7 @@ export async function userRoutes(fastify: FastifyInstance, ctx: AppContext) {
     return { ok: true };
   });
 
-  app.delete('/users/:id', { ...owner, schema: { params: idParams } }, async (req) => {
+  app.delete('/users/:id', { ...sensitive, schema: { params: idParams } }, async (req) => {
     if (req.params.id === req.admin!.userId) throw badRequest('cannot delete yourself');
     const r =
       await sql`UPDATE admin_users SET deleted_at = now(), disabled = true WHERE id = ${req.params.id} AND deleted_at IS NULL RETURNING id`;
@@ -102,7 +108,7 @@ export async function userRoutes(fastify: FastifyInstance, ctx: AppContext) {
     return sql`SELECT id, name, created_at AS "createdAt", last_used_at AS "lastUsedAt", revoked_at AS "revokedAt"
                FROM api_tokens ORDER BY created_at DESC`;
   });
-  app.post('/api-tokens', { ...owner, schema: { body: apiTokenCreateSchema } }, async (req) => {
+  app.post('/api-tokens', { ...sensitive, schema: { body: apiTokenCreateSchema } }, async (req) => {
     const id = newId();
     const token = `vst_${randomToken(32)}`;
     await sql`INSERT INTO api_tokens (id, name, token_hash, created_by) VALUES (${id}, ${req.body.name}, ${sha256Hex(token)}, ${req.admin!.userId})`;

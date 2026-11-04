@@ -24,6 +24,10 @@ const envSchema = z.object({
   PUBLIC_HOST: z.string().min(1, 'PUBLIC_HOST is required'),
   PUBLIC_SCHEME: z.enum(['http', 'https']).default('https'),
   ADMIN_HOST: z.string().optional(),
+  /** public: admin also on the public nginx listener; private: only on the private admin listener. */
+  ADMIN_LISTENER: z.enum(['public', 'private']).default('public'),
+  ADMIN_SESSION_IDLE_MINUTES: z.coerce.number().int().min(5).max(10_080).default(720),
+  ADMIN_REAUTH_MINUTES: z.coerce.number().int().min(1).max(720).default(10),
   ADMIN_ALLOW_CIDRS: csv(
     '10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,100.64.0.0/10',
   ),
@@ -113,4 +117,19 @@ export function config(): Config {
 
 export function setConfig(c: Config): void {
   cached = c;
+}
+
+/**
+ * Configuration choices that weaken the admin panel when the server is reachable from the internet.
+ * Logged at startup and shown on the admin System page.
+ */
+export function adminSecurityWarnings(c: Config): string[] {
+  const w: string[] = [];
+  const publicAdmin = c.ADMIN_LISTENER === 'public';
+  if (publicAdmin && c.ADMIN_ALLOW_CIDRS.some((x) => x.trim().endsWith('/0')))
+    w.push('admin_open_to_internet');
+  else if (publicAdmin && c.PUBLIC_SCHEME === 'https') w.push('admin_on_public_listener');
+  if (publicAdmin && c.PUBLIC_SCHEME === 'http' && c.ADMIN_ALLOW_CIDRS.some((x) => x.trim().endsWith('/0')))
+    w.push('admin_without_tls');
+  return w;
 }

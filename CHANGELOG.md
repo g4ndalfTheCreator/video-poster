@@ -3,6 +3,14 @@
 All notable changes are documented here. Versions follow semantic versioning; database migrations are
 forward-only.
 
+## 0.3.0 – 2026-11-04
+
+- Admin hardening for VPS installs: private admin listener (`ADMIN_LISTENER=private`, SSH tunnel or
+  VPN), password + TOTP re-check before sensitive owner actions, sign-in alerts for new addresses and
+  lockouts, signed-in device list with sign-out, nginx login rate limit, configurable session idle
+  timeout and security warnings on the System page. Guide: `docs/VPS.md`. Migration
+  `0007_admin_hardening.sql`.
+
 ## 0.2.0 – 2026-11-03
 
 - Story mode: full-screen mobile flow (muted autoplay with tap for sound, captions on, chapters,

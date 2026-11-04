@@ -3,6 +3,8 @@ import { cli, uniqueEmail, totpAt, currentStep } from './support.js';
 
 export interface AdminSession {
   email: string;
+  password: string;
+  secret: string;
   csrf: string;
   headers: Record<string, string>;
 }
@@ -26,7 +28,7 @@ export async function adminSession(
     data: { code: totpAt(secret, currentStep()) },
   });
   expect(confirm.ok()).toBeTruthy();
-  return { email, csrf, headers };
+  return { email, password, secret, csrf, headers };
 }
 
 /** Uploads a file with the tus protocol in 8 MB chunks; returns the video id. */

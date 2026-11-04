@@ -21,6 +21,14 @@ export const loginSchema = z.object({
   password: z.string().min(1).max(256),
 });
 export const totpSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
+/** Re-authentication before sensitive actions; `code` is required when TOTP is enabled. */
+export const reauthSchema = z.object({
+  password: z.string().min(1).max(256),
+  code: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional(),
+});
 export const totpEnrollConfirmSchema = z.object({ code: z.string().regex(/^\d{6}$/) });
 
 export const meSchema = z.object({

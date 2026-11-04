@@ -15,7 +15,26 @@ export const setCsrf = (t: string | null) => {
   csrfToken = t;
 };
 
+/**
+ * Called when the server answers `reauth_required` (sensitive owner actions). Resolves true once the
+ * user has confirmed their password (+ TOTP); the request is then retried once.
+ */
+let reauthHandler: (() => Promise<boolean>) | null = null;
+export const setReauthHandler = (fn: (() => Promise<boolean>) | null) => {
+  reauthHandler = fn;
+};
+
 export async function api<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
+  try {
+    return await request<T>(path, init);
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'reauth_required' && reauthHandler && (await reauthHandler()))
+      return request<T>(path, init);
+    throw e;
+  }
+}
+
+async function request<T>(path: string, init: RequestInit & { json?: unknown }): Promise<T> {
   const headers = new Headers(init.headers);
   const method = (init.method ?? 'GET').toUpperCase();
   if (init.json !== undefined) headers.set('content-type', 'application/json');
