@@ -1,3 +1,6 @@
+# Admin sign-in endpoints (login, TOTP, re-authentication, bootstrap); the api adds per-account limits.
+limit_req_zone $binary_remote_addr zone=login:10m rate=${ADMIN_LOGIN_RATE};
+
 # Public listener: viewer pages and media; the admin UI/API too unless ADMIN_LISTENER=private.
 server {
   listen 8080 default_server;

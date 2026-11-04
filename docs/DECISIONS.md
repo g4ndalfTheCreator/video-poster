@@ -273,6 +273,6 @@ wrong attempts in 5 minutes end the session. GDPR export is now fetched by the U
 link so the dialog can run. Users can list and sign out their own sessions (allowed for every role,
 like changing one's own password). Sign-ins from an address without a successful sign-in for that user
 in 90 days, and lockouts, are sent to the notification channels (`notifications_log` rows without a
-session). nginx adds a per-address limit (10/min, burst 10) on login, TOTP, re-auth and bootstrap only,
+session). nginx adds a per-address limit (`ADMIN_LOGIN_RATE`, default 10/min, burst 10) on login, TOTP, re-auth and bootstrap only,
 so TOTP enrollment and normal use are not throttled. The admin session idle timeout is configurable
 (`ADMIN_SESSION_IDLE_MINUTES`). Insecure combinations are logged at startup and shown on the System page.
